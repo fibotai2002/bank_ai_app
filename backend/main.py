@@ -528,7 +528,7 @@ async def chat(
             db.add(emp)
             await db.commit()
 
-    result = await chat_with_ai(db, req.message, telegram_id or 0, user_id=user_id)
+    result = await chat_with_ai(db, req.message, telegram_id or 0)
     return ChatResponse(**result)
 
 

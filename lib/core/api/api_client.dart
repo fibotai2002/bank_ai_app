@@ -4,7 +4,7 @@ import 'dart:io';
 
 class ApiClient {
   // Android emulyator: 10.0.2.2 | iOS simulator: localhost | Real qurilma: serverIP
-  static const baseUrl = 'http://localhost:8000';
+  static const baseUrl = 'http://10.0.2.2:8000';
 
   late final Dio _dio;
 
