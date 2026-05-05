@@ -23,6 +23,10 @@ void main() {
 
 class BankAIApp extends StatefulWidget {
   const BankAIApp({super.key});
+
+  static _BankAIAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_BankAIAppState>();
+
   @override
   State<BankAIApp> createState() => _BankAIAppState();
 }
@@ -30,6 +34,23 @@ class BankAIApp extends StatefulWidget {
 class _BankAIAppState extends State<BankAIApp> {
   bool _isLoggedIn = false;
   bool _checking = true;
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.dark
+          ? ThemeMode.light
+          : ThemeMode.dark;
+    });
+    _saveTheme();
+  }
+
+  bool get isDark => _themeMode == ThemeMode.dark;
+
+  Future<void> _saveTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', _themeMode.name);
+  }
 
   @override
   void initState() {
@@ -39,9 +60,13 @@ class _BankAIAppState extends State<BankAIApp> {
 
   Future<void> _check() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedTheme = prefs.getString('theme_mode');
     setState(() {
       _isLoggedIn = prefs.containsKey('access_token');
       _checking = false;
+      if (savedTheme == 'dark') _themeMode = ThemeMode.dark;
+      else if (savedTheme == 'light') _themeMode = ThemeMode.light;
+      else _themeMode = ThemeMode.system;
     });
   }
 
@@ -52,7 +77,7 @@ class _BankAIAppState extends State<BankAIApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: _themeMode,
       home: _checking
           ? const Scaffold(
               body: Center(
@@ -81,22 +106,57 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   int _unreadNotifs = 0;
   int _pendingTasks = 0;
-  String _role = 'employee';
-  int _userId = 0;
   final _api = ApiClient();
+
+  // Tab konfiguratsiyasi: icon, activeIcon, label, rang
+  static const _tabs = [
+    _TabInfo(
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: 'Bosh',
+      color: AppColors.googleBlue,
+    ),
+    _TabInfo(
+      icon: Icons.auto_awesome_outlined,
+      activeIcon: Icons.auto_awesome_rounded,
+      label: 'AI Chat',
+      color: AppColors.googleRed,
+    ),
+    _TabInfo(
+      icon: Icons.task_alt_outlined,
+      activeIcon: Icons.task_alt_rounded,
+      label: 'Vazifalar',
+      color: AppColors.googleGreen,
+    ),
+    _TabInfo(
+      icon: Icons.group_outlined,
+      activeIcon: Icons.group_rounded,
+      label: 'Xodimlar',
+      color: AppColors.googleYellow,
+    ),
+    _TabInfo(
+      icon: Icons.description_outlined,
+      activeIcon: Icons.description_rounded,
+      label: 'Hujjatlar',
+      color: AppColors.googleBlue,
+    ),
+    _TabInfo(
+      icon: Icons.notifications_outlined,
+      activeIcon: Icons.notifications_rounded,
+      label: 'Xabarlar',
+      color: AppColors.googleRed,
+    ),
+    _TabInfo(
+      icon: Icons.account_circle_outlined,
+      activeIcon: Icons.account_circle_rounded,
+      label: 'Profil',
+      color: AppColors.googleGreen,
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
-  }
-
-  Future<void> _loadUserInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _role = prefs.getString('role') ?? 'employee';
-      _userId = prefs.getInt('user_id') ?? 0;
-    });
     _loadBadges();
   }
 
@@ -114,116 +174,165 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Widget> get _screens => [
-        // 0 - Dashboard
         DashboardScreen(
           onNavigateToTasks: () => setState(() => _tab = 2),
           onNavigateToChat: () => setState(() => _tab = 1),
         ),
-        // 1 - Chat
         const ChatScreen(),
-        // 2 - Vazifalar
         const TasksScreen(),
-        // 3 - Xodimlar
         const EmployeesScreen(),
-        // 4 - Hujjatlar
         const DocumentsScreen(),
-        // 5 - Bildirishnomalar
         const NotificationsScreen(),
-        // 6 - Profil
         ProfileScreen(onLogout: widget.onLogout),
       ];
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+
     return Scaffold(
       body: IndexedStack(index: _tab, children: _screens),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _tab,
-          onTap: (i) {
-            setState(() => _tab = i);
-            if (i == 5) {
-              Future.delayed(const Duration(seconds: 1), _loadBadges);
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined, size: 22),
-              activeIcon: Icon(Icons.dashboard_rounded, size: 22),
-              label: 'Bosh',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.smart_toy_outlined, size: 22),
-              activeIcon: Icon(Icons.smart_toy_rounded, size: 22),
-              label: 'AI Chat',
-            ),
-            BottomNavigationBarItem(
-              icon: _badgeIcon(Icons.checklist_outlined, _pendingTasks),
-              activeIcon:
-                  _badgeIcon(Icons.checklist_rounded, _pendingTasks),
-              label: 'Vazifalar',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.people_outline_rounded, size: 22),
-              activeIcon: Icon(Icons.people_rounded, size: 22),
-              label: 'Xodimlar',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.folder_outlined, size: 22),
-              activeIcon: Icon(Icons.folder_rounded, size: 22),
-              label: 'Hujjatlar',
-            ),
-            BottomNavigationBarItem(
-              icon: _badgeIcon(
-                  Icons.notifications_none_rounded, _unreadNotifs),
-              activeIcon:
-                  _badgeIcon(Icons.notifications_rounded, _unreadNotifs),
-              label: 'Xabarlar',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded, size: 22),
-              activeIcon: Icon(Icons.person_rounded, size: 22),
-              label: 'Profil',
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border(
+            top: BorderSide(color: borderColor, width: 0.5),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
             ),
           ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 60,
+            child: Row(
+              children: List.generate(_tabs.length, (i) {
+                final tab = _tabs[i];
+                final isActive = _tab == i;
+                final color = isActive ? tab.color : (isDark ? AppColors.darkTextSec : AppColors.textHint);
+
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _tab = i);
+                      if (i == 5) {
+                        Future.delayed(const Duration(milliseconds: 500), _loadBadges);
+                      }
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Badge yoki icon
+                          _buildTabIcon(i, isActive, color, tab),
+                          const SizedBox(height: 3),
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 200),
+                            style: TextStyle(
+                              fontSize: isActive ? 10.5 : 10,
+                              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                              color: color,
+                              letterSpacing: 0.1,
+                            ),
+                            child: Text(tab.label),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _badgeIcon(IconData icon, int count) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Icon(icon, size: 22),
-        if (count > 0)
+  Widget _buildTabIcon(int i, bool isActive, Color color, _TabInfo tab) {
+    int badge = 0;
+    if (i == 2) badge = _pendingTasks;
+    if (i == 5) badge = _unreadNotifs;
+
+    final iconWidget = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: Icon(
+        isActive ? tab.activeIcon : tab.icon,
+        key: ValueKey(isActive),
+        size: 24,
+        color: color,
+      ),
+    );
+
+    if (badge > 0) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          iconWidget,
           Positioned(
             top: -4,
             right: -6,
             child: Container(
-              padding: const EdgeInsets.all(2),
-              constraints:
-                  const BoxConstraints(minWidth: 16, minHeight: 16),
-              decoration: const BoxDecoration(
-                color: AppColors.error,
-                shape: BoxShape.circle,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              decoration: BoxDecoration(
+                color: AppColors.googleRed,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.darkBg
+                      : AppColors.bg,
+                  width: 1.5,
+                ),
               ),
               child: Text(
-                count > 99 ? '99+' : '$count',
+                badge > 99 ? '99+' : '$badge',
                 style: const TextStyle(
                   fontSize: 9,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
           ),
-      ],
-    );
+        ],
+      );
+    }
+
+    // Active tab uchun pill background
+    if (isActive) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: iconWidget,
+      );
+    }
+
+    return iconWidget;
   }
+}
+
+class _TabInfo {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final Color color;
+  const _TabInfo({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.color,
+  });
 }

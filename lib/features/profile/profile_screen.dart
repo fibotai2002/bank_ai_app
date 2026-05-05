@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../main.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onLogout;
@@ -368,17 +369,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
       const Divider(height: 1, indent: 46, color: AppColors.border);
 
   Widget _actionsSection() {
+    final appState = BankAIApp.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bg,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
       ),
       child: Column(
         children: [
           _actionTile(Icons.edit_outlined, 'Profilni tahrirlash',
               AppColors.accent, _showEditSheet),
-          const Divider(height: 1, indent: 46, color: AppColors.border),
+          Divider(height: 1, indent: 46,
+              color: isDark ? AppColors.darkBorder : AppColors.border),
+          // Dark/Light mode toggle
+          InkWell(
+            onTap: () => appState?.toggleTheme(),
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppColors.googleYellow.withValues(alpha: 0.15)
+                          : AppColors.googleBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      size: 18,
+                      color: isDark ? AppColors.googleYellow : AppColors.googleBlue,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    isDark ? 'Yorug\' rejim' : 'Qorong\'u rejim',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? AppColors.darkText : AppColors.textPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppColors.googleYellow.withValues(alpha: 0.15)
+                          : AppColors.googleBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isDark ? '🌙 Dark' : '☀️ Light',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.googleYellow : AppColors.googleBlue,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Divider(height: 1, indent: 46,
+              color: isDark ? AppColors.darkBorder : AppColors.border),
           _actionTile(Icons.logout_rounded, 'Chiqish',
               AppColors.error, _confirmLogout),
         ],
