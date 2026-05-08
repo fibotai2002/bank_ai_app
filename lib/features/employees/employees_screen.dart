@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
+import 'add_employee_sheet.dart';
 
 class EmployeesScreen extends StatefulWidget {
   const EmployeesScreen({super.key});
@@ -29,22 +30,48 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     _load();
   }
 
-  void _showAddEmployeeComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.construction_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Text('Tez orada! Xodim qo\'shish funksiyasi ishlab chiqilmoqda.'),
-          ],
-        ),
-        backgroundColor: AppColors.accent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 3),
+  void _showAddEmployeeSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddEmployeeSheet(
+        api: _api,
+        onCreated: _load,
       ),
     );
+  }
+
+  Future<void> _deleteEmployee(int id, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.darkSurface
+            : AppColors.bg,
+        title: const Text('Xodimni o\'chirish'),
+        content: Text('Haqiqatan ham $name ni tizimdan o\'chirmoqchimisiz?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Bekor qilish')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('O\'chirish', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _api.deleteUser(id);
+        _load();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('🗑️ Xodim o\'chirildi'), backgroundColor: AppColors.textSec),
+          );
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _load() async {
@@ -88,7 +115,15 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _UserDetailSheet(user: user, isDark: isDark),
+      builder: (_) => _UserDetailSheet(
+        user: user,
+        isDark: isDark,
+        isAdmin: _role == 'admin',
+        onDelete: () {
+          Navigator.pop(context);
+          _deleteEmployee(user['id'], user['full_name']);
+        },
+      ),
     );
   }
 
@@ -132,10 +167,11 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
           if (_role == 'admin')
             IconButton(
               icon: const Icon(Icons.person_add_outlined, size: 22),
-              onPressed: _showAddEmployeeComingSoon,
+              onPressed: _showAddEmployeeSheet,
               tooltip: 'Xodim qo\'shish',
             ),
         ],
+
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(57),
           child: Column(
@@ -375,7 +411,15 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
 class _UserDetailSheet extends StatelessWidget {
   final Map user;
   final bool isDark;
-  const _UserDetailSheet({required this.user, required this.isDark});
+  final bool isAdmin;
+  final VoidCallback onDelete;
+
+  const _UserDetailSheet({
+    required this.user,
+    required this.isDark,
+    required this.isAdmin,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -478,6 +522,23 @@ class _UserDetailSheet extends StatelessWidget {
           if ((user['email'] ?? '').isNotEmpty)
             _infoRow(Icons.email_outlined, 'Email', user['email'],
                 hintColor, subColor, textColor),
+          if (isAdmin) ...[
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                label: const Text('Xodimni o\'chirish'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

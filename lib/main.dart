@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// ignore: unused_import — WebSocket Tez orada aktivlashtirish uchun tayyor
-// import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -221,32 +220,64 @@ class _HomeScreenState extends State<HomeScreen> {
   final _api = ApiClient();
 
   // WebSocket — real-time bildirishnomalar
-  // TODO: WebSocket real-time bildirishnomalar — Tez orada!
-  // WebSocketChannel? _wsChannel;
-  // void _connectWebSocket(int userId, String token) {
-  //   final wsUrl = ApiClient.baseUrl
-  //       .replaceFirst('https://', 'wss://')
-  //       .replaceFirst('http://', 'ws://');
-  //   try {
-  //     _wsChannel = WebSocketChannel.connect(
-  //       Uri.parse('$wsUrl/ws/$userId?token=$token'),
-  //     );
-  //     _wsChannel!.stream.listen(
-  //       (msg) {
-  //         // Yangi bildirishnoma keldi — badge yangilash
-  //         if (mounted) setState(() => _unreadNotifs++);
-  //       },
-  //       onDone: () {
-  //         // Ulanish uzildi — 5 soniyadan keyin qayta ulanish
-  //         Future.delayed(const Duration(seconds: 5), () {
-  //           if (mounted) _connectWebSocket(userId, token);
-  //         });
-  //       },
-  //       onError: (_) {},
-  //       cancelOnError: false,
-  //     );
-  //   } catch (_) {}
-  // }
+  WebSocketChannel? _wsChannel;
+  
+  void _connectWebSocket(int userId, String token) {
+    // Platform bazasidan kelib chiqib ws/wss ni aniqlash
+    final base = ApiClient.baseUrl;
+    String wsUrl;
+    if (base.contains('10.0.2.2')) {
+      wsUrl = 'ws://10.0.2.2:8000/ws/$userId?token=$token';
+    } else if (base.contains('localhost')) {
+      wsUrl = 'ws://localhost:8000/ws/$userId?token=$token';
+    } else {
+      wsUrl = base.replaceFirst('http', 'ws') + '/ws/$userId?token=$token';
+    }
+
+    try {
+      _wsChannel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      _wsChannel!.stream.listen(
+        (msg) {
+          // Yangi bildirishnoma keldi — badge yangilash
+          _loadBadges();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('🔔 Yangi bildirishnoma keldi'),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: AppColors.accent,
+                duration: const Duration(seconds: 2),
+                action: SnackBarAction(label: 'Ko\'rish', textColor: Colors.white, onPressed: _openNotifications),
+              ),
+            );
+          }
+        },
+        onDone: () {
+          // Reconnect logic
+          Future.delayed(const Duration(seconds: 5), () {
+            if (mounted && _wsChannel == null) _reconnect(userId, token);
+          });
+        },
+        onError: (_) {
+           Future.delayed(const Duration(seconds: 5), () {
+            if (mounted) _reconnect(userId, token);
+          });
+        },
+        cancelOnError: false,
+      );
+    } catch (_) {}
+  }
+
+  void _reconnect(int userId, String token) {
+    if (!mounted) return;
+    _connectWebSocket(userId, token);
+  }
+
+  @override
+  void dispose() {
+    _wsChannel?.sink.close();
+    super.dispose();
+  }
 
   // Faqat 5 ta tab - Profile va Notifications AppBar ga ko'chirildi
   static const _tabs = [
@@ -285,7 +316,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _initWS();
     _loadBadges();
+  }
+
+  Future<void> _initWS() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    final userId = prefs.getInt('user_id');
+    if (token != null && userId != null) {
+      _connectWebSocket(userId, token);
+    }
   }
 
   Future<void> _loadBadges() async {

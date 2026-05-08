@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case
+from sqlalchemy import select, func, case, and_
 from typing import Optional, List
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -86,3 +86,32 @@ async def get_department_stats(db: AsyncSession = Depends(get_db)):
         }
         for row in rows
     ]
+
+
+@router.get("/weekly")
+async def get_weekly_stats(db: AsyncSession = Depends(get_db)):
+    # Oxirgi 7 kunlik statistika
+    from datetime import datetime, timedelta
+    today = datetime.utcnow().date()
+    days = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
+    
+    out = []
+    for d in days:
+        # Shu kundagi yaratilgan vazifalar
+        # SQLite uchun strftime ishlatamiz
+        d_str = d.strftime("%Y-%m-%d")
+        created_q = select(func.count()).select_from(Task).where(func.strftime("%Y-%m-%d", Task.created_at) == d_str)
+        completed_q = select(func.count()).select_from(Task).where(
+            and_(Task.status == "completed", func.strftime("%Y-%m-%d", Task.updated_at) == d_str)
+        )
+        
+        created = (await db.execute(created_q)).scalar() or 0
+        completed = (await db.execute(completed_q)).scalar() or 0
+        
+        out.append({
+            "date": d_str,
+            "day_name": d.strftime("%a"),
+            "created": created,
+            "completed": completed
+        })
+    return out

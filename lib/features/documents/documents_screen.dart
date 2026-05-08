@@ -3,6 +3,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
+import 'package:dio/dio.dart' as dio_pkg;
 import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -137,6 +140,33 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     ));
   }
 
+  Future<void> _openFile(String filename, String originalName) async {
+    final url = _api.getFileUrl(filename);
+    if (url.isEmpty) return;
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final savePath = '${tempDir.path}/$originalName';
+      final file = File(savePath);
+
+      if (await file.exists()) {
+        await OpenFile.open(savePath);
+        return;
+      }
+
+      // Download
+      _showSnack('📥 Fayl yuklanmoqda...', AppColors.accent);
+      final dio = dio_pkg.Dio();
+      await dio.download(url, savePath);
+
+      await OpenFile.open(savePath);
+    } catch (e) {
+      if (mounted) {
+        _showSnack('❌ Faylni ochib bo\'lmadi', AppColors.error);
+      }
+    }
+  }
+
   void _showDocDetail(Map doc) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -146,6 +176,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       builder: (_) => _DocDetailSheet(
         doc: doc,
         isDark: isDark,
+        onOpen: () => _openFile(doc['filename'] ?? '', doc['original_name'] ?? 'file'),
         onDelete: () {
           Navigator.pop(context);
           _deleteDoc(doc['id'], doc['original_name'] ?? '');
@@ -485,10 +516,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 class _DocDetailSheet extends StatelessWidget {
   final Map doc;
   final VoidCallback onDelete;
+  final VoidCallback onOpen;
   final bool isDark;
 
-  const _DocDetailSheet(
-      {required this.doc, required this.onDelete, required this.isDark});
+  const _DocDetailSheet({
+    required this.doc,
+    required this.onDelete,
+    required this.onOpen,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -575,41 +611,20 @@ class _DocDetailSheet extends StatelessWidget {
           Divider(color: borderColor),
           const SizedBox(height: 8),
           // "Ochish" tugmasi — Tez orada!
+          // "Ochish" tugmasi
           SizedBox(
             width: double.infinity,
-            child: TextButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Row(
-                      children: [
-                        Icon(Icons.construction_rounded,
-                            color: Colors.white, size: 18),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                              'Tez orada! Hujjatni ochib ko\'rish funksiyasi ishlab chiqilmoqda.'),
-                        ),
-                      ],
-                    ),
-                    backgroundColor: AppColors.accent,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              },
-              icon: Icon(Icons.open_in_new_rounded,
-                  size: 18,
-                  color: isDark ? AppColors.darkAccent : AppColors.accent),
-              label: Text('Hujjatni ochish',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: isDark
-                          ? AppColors.darkAccent
-                          : AppColors.accent)),
+            child: ElevatedButton.icon(
+              onPressed: onOpen,
+              icon: const Icon(Icons.open_in_new_rounded, size: 18, color: Colors.white),
+              label: const Text('Hujjatni ochish'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
             ),
           ),
           const SizedBox(height: 4),

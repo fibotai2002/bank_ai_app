@@ -4,12 +4,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 class ApiClient {
-  // Platform-based URL
+  // Production URL (Render.com)
+  // Build: flutter build apk --dart-define=API_BASE_URL=https://bank-ai-backend.onrender.com
+  static const String _productionUrl = 'https://bank-ai-backend.onrender.com';
+
   static String get baseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
+    // Development fallback
     if (Platform.isIOS) return 'http://localhost:8000';
     return 'http://10.0.2.2:8000'; // Android emulator
+  }
+
+  static String get wsBaseUrl {
+    final url = baseUrl
+        .replaceFirst('https://', 'wss://')
+        .replaceFirst('http://', 'ws://');
+    return url;
   }
 
   late final Dio _dio;
@@ -185,5 +196,16 @@ class ApiClient {
   Future<List<dynamic>> getDepartmentStats() async {
     final res = await _dio.get('/api/stats/departments');
     return res.data as List<dynamic>;
+  }
+
+  Future<List<dynamic>> getWeeklyStats() async {
+    final res = await _dio.get('/api/stats/weekly');
+    return res.data as List<dynamic>;
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  String getFileUrl(String filename) {
+    if (filename.isEmpty) return '';
+    return '$baseUrl/uploads/$filename';
   }
 }

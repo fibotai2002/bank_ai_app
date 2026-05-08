@@ -53,3 +53,10 @@ backend/*.db
 backend/*.sqlite3
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+# Android signing secrets (NEVER commit these!)
+android/key.properties
+android/*.jks
+android/*.keystore
+*.jks
+*.keystore

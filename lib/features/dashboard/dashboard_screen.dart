@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -22,6 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? _stats;
   List<dynamic> _recentTasks = [];
   List<dynamic> _deptStats = [];
+  List<dynamic> _weeklyStats = [];
   bool _loading = true;
   String _role = 'employee';
   String _fullName = '';
@@ -49,14 +51,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final results = await Future.wait([
         _api.getStats(),
         _api.getTasks(),
+        _api.getWeeklyStats(),
         if (_role == 'admin') _api.getDepartmentStats(),
       ]);
       setState(() {
         _stats = results[0] as Map<String, dynamic>;
         final tasks = results[1] as List;
         _recentTasks = tasks.take(5).toList();
-        if (_role == 'admin' && results.length > 2) {
-          _deptStats = results[2] as List;
+        _weeklyStats = results[2] as List;
+        if (_role == 'admin' && results.length > 3) {
+          _deptStats = results[3] as List;
         }
       });
     } catch (_) {}
@@ -121,6 +125,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _aiInsightsPanel(isDark),
                     const SizedBox(height: 20),
                     if (_stats != null) _statsGrid(isDark),
+                    const SizedBox(height: 20),
+                    if (_stats != null) _chartsSection(isDark),
                     const SizedBox(height: 20),
                     _quickActions(isDark),
                     const SizedBox(height: 20),
@@ -621,5 +627,151 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  Widget _chartsSection(bool isDark) {
+    final s = _stats!;
+    final total = (s['total_tasks'] ?? 0) as int;
+    if (total == 0) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Grafik tahlillar',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: isDark ? AppColors.darkText : AppColors.textPrimary)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            // Pie Chart - Task Distribution
+            Expanded(
+              flex: 3,
+              child: Container(
+                height: 180,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    const Text('Vazifalar taqsimoti', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 25,
+                          sections: [
+                            PieChartSectionData(
+                              value: (s['completed'] ?? 0).toDouble(),
+                              color: AppColors.success,
+                              radius: 12,
+                              showTitle: false,
+                            ),
+                            PieChartSectionData(
+                              value: (s['in_progress'] ?? 0).toDouble(),
+                              color: AppColors.accent,
+                              radius: 12,
+                              showTitle: false,
+                            ),
+                            PieChartSectionData(
+                              value: (s['pending'] ?? 0).toDouble(),
+                              color: AppColors.warning,
+                              radius: 12,
+                              showTitle: false,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _dot(AppColors.success, 'B'),
+                        const SizedBox(width: 8),
+                        _dot(AppColors.accent, 'J'),
+                        const SizedBox(width: 8),
+                        _dot(AppColors.warning, 'K'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Bar Chart - Weekly Activity
+            Expanded(
+              flex: 4,
+              child: Container(
+                height: 180,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    const Text('Haftalik faollik', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: BarChart(
+                        BarChartData(
+                          gridData: const FlGridData(show: false),
+                          titlesData: FlTitlesData(
+                            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (val, meta) {
+                                  if (val < 0 || val >= _weeklyStats.length) return const Text('');
+                                  return Text(_weeklyStats[val.toInt()]['day_name'] ?? '', style: const TextStyle(fontSize: 8));
+                                },
+                              ),
+                            ),
+                          ),
+                          borderData: FlBorderData(show: false),
+                          barGroups: List.generate(_weeklyStats.length, (i) {
+                            final d = _weeklyStats[i];
+                            return BarChartGroupData(
+                              x: i,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: (d['created'] ?? 0).toDouble(),
+                                  color: AppColors.accent.withOpacity(0.4),
+                                  width: 4,
+                                ),
+                                BarChartRodData(
+                                  toY: (d['completed'] ?? 0).toDouble(),
+                                  color: AppColors.success,
+                                  width: 4,
+                                ),
+                              ],
+                            );
+                          }),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
+
+  Widget _dot(Color color, String label) => Row(
+        children: [
+          Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 9)),
+        ],
+      );
 }

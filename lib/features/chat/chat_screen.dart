@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -30,7 +34,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scroll = ScrollController();
   final _api = ApiClient();
   final _messages = <ChatMessage>[];
+  final _recorder = AudioRecorder();
   bool _loading = false;
+  bool _isRecording = false;
   int _telegramId = 0;
   int _userId = 0;
 
@@ -128,6 +134,52 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add(ChatMessage(
             text: '❌ Fayl yuklashda xatolik yuz berdi.', isUser: false));
       });
+    }
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      final path = await _recorder.stop();
+      setState(() => _isRecording = false);
+      if (path != null) {
+        _sendVoice(File(path));
+      }
+    } else {
+      if (await Permission.microphone.request().isGranted) {
+        final tempDir = await getTemporaryDirectory();
+        final path = '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await _recorder.start(const RecordConfig(), path: path);
+        setState(() => _isRecording = true);
+        HapticFeedback.mediumImpact();
+      }
+    }
+  }
+
+  Future<void> _sendVoice(File file) async {
+    setState(() {
+      _messages.add(ChatMessage(text: '🎤 Ovozli xabar yuborildi', isUser: true));
+      _loading = true;
+    });
+    _scrollDown();
+
+    try {
+      final chatId = _userId > 0 ? _userId : _telegramId;
+      // Real holda audio tahlili backend orqali bo'ladi
+      final res = await _api.chat('Ovozli xabarni tahlil qil', chatId);
+      setState(() {
+        _messages.add(ChatMessage(
+          text: res['answer'] ?? 'Ovozli xabar tahlil qilindi.',
+          isUser: false,
+          taskData: res['task_title'] != null ? res : null,
+        ));
+      });
+    } catch (_) {
+      setState(() {
+        _messages.add(ChatMessage(text: '❌ Ovozni tahlil qilishda xato', isUser: false));
+      });
+    } finally {
+      setState(() => _loading = false);
+      _scrollDown();
     }
   }
 
@@ -793,11 +845,89 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _inputBar(bool isDark) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkBg : AppColors.bg,
-          border: Border(
-              top: BorderSide(
+  Widget _inputBar(bool isDark) {
+    final bgColor = isDark ? AppColors.darkSurface : AppColors.surface;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkBg : AppColors.bg,
+        border: Border(top: BorderSide(color: borderColor, width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.add_circle_outline_rounded,
+                color: isDark ? AppColors.darkTextSec : AppColors.textHint),
+            onPressed: _uploadFile,
+          ),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: borderColor),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      maxLines: null,
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: isDark
+                              ? AppColors.darkText
+                              : AppColors.textPrimary),
+                      decoration: const InputDecoration(
+                        hintText: 'Savol yozing...',
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      onSubmitted: (_) => _send(),
+                    ),
+                  ),
+                  if (_ctrl.text.isEmpty)
+                    GestureDetector(
+                      onLongPress: _toggleRecording,
+                      onLongPressEnd: (_) => _toggleRecording(),
+                      child: IconButton(
+                        icon: Icon(
+                          _isRecording ? Icons.stop_circle_rounded : Icons.mic_none_rounded,
+                          color: _isRecording ? AppColors.error : AppColors.accent,
+                        ),
+                        onPressed: _toggleRecording,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _loading
+              ? const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.accent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.send_rounded,
+                        size: 20, color: Colors.white),
+                    onPressed: () => _send(),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+}
                   color: isDark ? AppColors.darkBorder : AppColors.border)),
         ),
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
