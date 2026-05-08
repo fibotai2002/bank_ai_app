@@ -36,6 +36,11 @@ class _BankAIAppState extends State<BankAIApp> {
   bool _checking = true;
   ThemeMode _themeMode = ThemeMode.system;
 
+  void setThemeMode(ThemeMode mode) {
+    setState(() => _themeMode = mode);
+    _saveTheme();
+  }
+
   void toggleTheme() {
     setState(() {
       _themeMode = _themeMode == ThemeMode.dark
@@ -46,6 +51,7 @@ class _BankAIAppState extends State<BankAIApp> {
   }
 
   bool get isDark => _themeMode == ThemeMode.dark;
+  ThemeMode get themeMode => _themeMode;
 
   Future<void> _saveTheme() async {
     final prefs = await SharedPreferences.getInstance();
@@ -188,11 +194,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final root = BankAIApp.of(context);
+    final isRootDark = root?.isDark ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Tashkilot AI'),
+        actions: [
+          IconButton(
+            tooltip: isRootDark ? 'Yorug\' rejimga o\'tish' : 'Tungi rejimga o\'tish',
+            icon: Icon(
+              isRootDark ? Icons.wb_sunny_outlined : Icons.dark_mode_outlined,
+            ),
+            onPressed: () => BankAIApp.of(context)?.toggleTheme(),
+          ),
+        ],
+      ),
       body: IndexedStack(index: _tab, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

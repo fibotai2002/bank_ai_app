@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Literal
 from datetime import datetime
+import re
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ class UserUpdate(BaseModel):
     email: Optional[str] = None
     department_id: Optional[int] = None
     password: Optional[str] = None
+    old_password: Optional[str] = None  # Parol o'zgartirish uchun eski parol
 
 
 # ── Department ────────────────────────────────────────────────────────────────
@@ -76,28 +78,75 @@ class DepartmentOut(BaseModel):
 
 
 # ── Task ──────────────────────────────────────────────────────────────────────
+VALID_PRIORITIES = {"yuqori", "o'rta", "past"}
+VALID_STATUSES = {"pending", "in_progress", "completed", "rejected"}
+DEADLINE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
 class TaskCreate(BaseModel):
-    title: str
-    description: Optional[str] = None
-    department: Optional[str] = None
+    title: str = Field(..., min_length=1, max_length=500)
+    description: Optional[str] = Field(None, max_length=2000)
+    department: Optional[str] = Field(None, max_length=200)
     department_id: Optional[int] = None
-    priority: str = "o'rta"
-    status: str = "pending"
-    source_document: Optional[str] = None
+    priority: str = Field(default="o'rta")
+    status: str = Field(default="pending")
+    source_document: Optional[str] = Field(None, max_length=500)
     deadline: Optional[str] = None
     assignee_id: Optional[int] = None
+
+    @field_validator("priority")
+    @classmethod
+    def validate_priority(cls, v: str) -> str:
+        if v not in VALID_PRIORITIES:
+            raise ValueError(f"Priority '{v}' noto'g'ri. Qabul qilinadigan: {VALID_PRIORITIES}")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in VALID_STATUSES:
+            raise ValueError(f"Status '{v}' noto'g'ri. Qabul qilinadigan: {VALID_STATUSES}")
+        return v
+
+    @field_validator("deadline")
+    @classmethod
+    def validate_deadline(cls, v: Optional[str]) -> Optional[str]:
+        if v and not DEADLINE_PATTERN.match(v):
+            raise ValueError("Deadline formati noto'g'ri. YYYY-MM-DD formatida kiriting")
+        return v
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    department: Optional[str] = None
+    title: Optional[str] = Field(None, min_length=1, max_length=500)
+    description: Optional[str] = Field(None, max_length=2000)
+    department: Optional[str] = Field(None, max_length=200)
     department_id: Optional[int] = None
     priority: Optional[str] = None
     status: Optional[str] = None
-    source_document: Optional[str] = None
+    source_document: Optional[str] = Field(None, max_length=500)
     deadline: Optional[str] = None
     assignee_id: Optional[int] = None
+
+    @field_validator("priority")
+    @classmethod
+    def validate_priority(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_PRIORITIES:
+            raise ValueError(f"Priority '{v}' noto'g'ri. Qabul qilinadigan: {VALID_PRIORITIES}")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_STATUSES:
+            raise ValueError(f"Status '{v}' noto'g'ri. Qabul qilinadigan: {VALID_STATUSES}")
+        return v
+
+    @field_validator("deadline")
+    @classmethod
+    def validate_deadline(cls, v: Optional[str]) -> Optional[str]:
+        if v and not DEADLINE_PATTERN.match(v):
+            raise ValueError("Deadline formati noto'g'ri. YYYY-MM-DD formatida kiriting")
+        return v
 
 
 class TaskAssign(BaseModel):

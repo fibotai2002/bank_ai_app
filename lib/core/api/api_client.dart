@@ -1,10 +1,16 @@
+
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 class ApiClient {
-  // Android emulyator: 10.0.2.2 | iOS simulator: localhost | Real qurilma: serverIP
-  static const baseUrl = 'http://localhost:8000';
+  // Platform-based URL
+  static String get baseUrl {
+    const envUrl = String.fromEnvironment('API_BASE_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    if (Platform.isIOS) return 'http://localhost:8000';
+    return 'http://10.0.2.2:8000'; // Android emulator
+  }
 
   late final Dio _dio;
 
@@ -82,21 +88,25 @@ class ApiClient {
   }
 
   // ── Tasks ─────────────────────────────────────────────────────────────────
-  Future<List<dynamic>> getTasks(
-      {String? status, String? department, String? priority}) async {
-    final res = await _dio.get('/api/tasks', queryParameters: {
-      if (status != null) 'status': status,
-      if (department != null) 'department': department,
-      if (priority != null) 'priority': priority,
-    });
+  Future<List<dynamic>> getTasks({String? status, String? department, String? priority}) async {
+    final params = <String, dynamic>{};
+    if (status != null) params['status'] = status;
+    if (department != null) params['department'] = department;
+    if (priority != null) params['priority'] = priority;
+    final res = await _dio.get('/api/tasks', queryParameters: params.isNotEmpty ? params : null);
     return res.data as List<dynamic>;
   }
 
   Future<List<dynamic>> getMyTasks({String? status}) async {
-    final res = await _dio.get('/api/tasks/my', queryParameters: {
-      if (status != null) 'status': status,
-    });
+    final params = <String, dynamic>{};
+    if (status != null) params['status'] = status;
+    final res = await _dio.get('/api/tasks/my', queryParameters: params.isNotEmpty ? params : null);
     return res.data as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getTask(int taskId) async {
+    final res = await _dio.get('/api/tasks/$taskId');
+    return res.data as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> createTask(Map<String, dynamic> data) async {
@@ -104,49 +114,26 @@ class ApiClient {
     return res.data as Map<String, dynamic>;
   }
 
-  Future<void> updateTaskStatus(int id, String status) async {
-    await _dio.patch('/api/tasks/$id/status',
+  Future<Map<String, dynamic>> updateTask(int taskId, Map<String, dynamic> data) async {
+    final res = await _dio.patch('/api/tasks/$taskId', data: data);
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateTaskStatus(int taskId, String status) async {
+    final res = await _dio.patch('/api/tasks/$taskId/status',
         queryParameters: {'status': status});
-  }
-
-  Future<Map<String, dynamic>> updateTask(
-      int id, Map<String, dynamic> data) async {
-    final res = await _dio.patch('/api/tasks/$id', data: data);
     return res.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> assignTask(
-      int taskId, int assigneeId, {String? message}) async {
-    final res = await _dio.post('/api/tasks/$taskId/assign',
-        data: {'assignee_id': assigneeId, if (message != null) 'message': message});
+  Future<Map<String, dynamic>> assignTask(int taskId, int assigneeId, {String? message}) async {
+    final data = <String, dynamic>{'assignee_id': assigneeId};
+    if (message != null) data['message'] = message;
+    final res = await _dio.post('/api/tasks/$taskId/assign', data: data);
     return res.data as Map<String, dynamic>;
   }
 
-  Future<void> deleteTask(int id) async {
-    await _dio.delete('/api/tasks/$id');
-  }
-
-  // ── Employees (eski moslik) ───────────────────────────────────────────────
-  Future<List<dynamic>> getEmployees() async {
-    final res = await _dio.get('/api/employees');
-    return res.data as List<dynamic>;
-  }
-
-  Future<Map<String, dynamic>> getEmployee(int telegramId) async {
-    final res = await _dio.get('/api/employees/$telegramId');
-    return res.data as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> createEmployee(
-      Map<String, dynamic> data) async {
-    final res = await _dio.post('/api/employees', data: data);
-    return res.data as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> updateEmployee(
-      int telegramId, Map<String, dynamic> data) async {
-    final res = await _dio.patch('/api/employees/$telegramId', data: data);
-    return res.data as Map<String, dynamic>;
+  Future<void> deleteTask(int taskId) async {
+    await _dio.delete('/api/tasks/$taskId');
   }
 
   // ── Notifications ─────────────────────────────────────────────────────────
@@ -155,21 +142,16 @@ class ApiClient {
     return res.data as List<dynamic>;
   }
 
-  Future<List<dynamic>> getNotifications(int telegramId) async {
-    final res = await _dio.get('/api/notifications/$telegramId');
-    return res.data as List<dynamic>;
-  }
-
   Future<void> markNotificationRead(int notifId) async {
     await _dio.patch('/api/notifications/$notifId/read');
   }
 
-  Future<void> markAllNotificationsRead(int telegramId) async {
-    await _dio.patch('/api/notifications/read-all/$telegramId');
-  }
-
   Future<void> markAllMyNotificationsRead() async {
     await _dio.patch('/api/notifications/read-all/me');
+  }
+
+  Future<void> markAllNotificationsRead(int telegramId) async {
+    await _dio.patch('/api/notifications/read-all/$telegramId');
   }
 
   // ── Documents ─────────────────────────────────────────────────────────────
@@ -199,6 +181,7 @@ class ApiClient {
     return res.data as Map<String, dynamic>;
   }
 
+  // ── Department Stats ──────────────────────────────────────────────────────
   Future<List<dynamic>> getDepartmentStats() async {
     final res = await _dio.get('/api/stats/departments');
     return res.data as List<dynamic>;

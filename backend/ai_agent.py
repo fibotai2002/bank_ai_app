@@ -3,57 +3,50 @@ import json
 from google import genai
 from google.genai import types
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
-from database import ChatHistory, Task, Employee, Document
+from sqlalchemy import select, desc, and_
+from database import ChatHistory, Document, User, Department
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Gemini API key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 GEMINI_MODEL = "gemini-1.5-flash"
 
 SYSTEM_PROMPT = """Siz O'zbekiston Markaziy Banki Farg'ona viloyati boshqarmasining AI yordamchisisiz.
 
 Vazifalaringiz:
-1. Xodimlarning savollariga javob berish
-2. Hujjatlardan vazifalarni aniqlash va taqsimlash
-3. Bank qoidalari va tartib-qoidalari haqida ma'lumot berish
-4. Vazifalarni tegishli bo'limlarga yo'naltirish
+1. Xodimlarning savollari va murojaatlariga o'zbek tilida professional javob berish.
+2. Xabarlar yoki hujjatlar tarkibidagi topshiriqlarni aniqlash.
+3. Aniqlangan topshiriqlarni eng mos bo'lim va xodimga taqsimlashni taklif qilish.
+4. Bank tartib-qoidalari bo'yicha ma'lumot berish.
 
 Javob berish qoidalari:
-- Har doim o'zbek tilida javob bering
-- Aniq va qisqa javob bering
-- Agar vazifa aniqlansa, JSON formatida qaytaring
-- Professionallik saqlang
+- Har doim o'zbek tilida javob bering.
+- Professionallik va odob saqlang.
+- Vazifa aniqlansa, uni JSON formatida taqdim eting.
 
-Agar foydalanuvchi biror vazifa yoki topshiriq haqida so'rasa yoki hujjat tahlil qilishni so'rasa,
-quyidagi JSON formatida javob bering (faqat vazifa aniqlanganda):
+Vazifa taqsimlashda quyidagilarga e'tibor bering:
+- Vazifa mazmunidan kelib chiqib, eng mos bo'limni tanlang.
+- Agar xodimlar ro'yxati berilgan bo'lsa, vazifani bajarishga eng munosib xodimni (lavozimidan kelib chiqib) taklif qiling.
 
+JSON formati (faqat vazifa aniqlanganda):
 {
-  "answer": "Javob matni",
-  "task_title": "Vazifa nomi",
-  "responsible_department": "Mas'ul bo'lim",
+  "answer": "Foydalanuvchiga javob matni",
+  "task_title": "Vazifaning qisqa va aniq nomi",
+  "responsible_department": "Bo'lim nomi",
+  "suggested_employee_id": 123, // Xodim ID raqami (agar aniqlansa)
   "priority": "yuqori|o'rta|past",
-  "source_document": "Hujjat nomi (agar mavjud bo'lsa)"
+  "deadline": "YYYY-MM-DD", // Agar xabarda sana bo'lsa
+  "source_document": "Hujjat nomi"
 }
 
-Agar oddiy savol bo'lsa, faqat:
+Oddiy suhbat uchun:
 {
   "answer": "Javob matni"
 }
-
-Bo'limlar ro'yxati:
-- Kredit bo'limi
-- Hisob-kitob bo'limi
-- Nazorat bo'limi
-- Kadrlar bo'limi
-- Moliya bo'limi
-- Yuridik bo'lim
-- IT bo'limi
-- Xavfsizlik bo'limi
 """
 
 
@@ -77,14 +70,30 @@ async def save_message(db: AsyncSession, telegram_id: int, role: str, content: s
 
 async def get_documents_context(db: AsyncSession) -> str:
     result = await db.execute(
-        select(Document).where(Document.content_text.isnot(None)).limit(5)
+        select(Document).where(Document.content_text.isnot(None)).order_by(desc(Document.created_at)).limit(5)
     )
     docs = result.scalars().all()
     if not docs:
         return ""
-    context = "\n\nMavjud hujjatlar:\n"
+    context = "\n\nOxirgi yuklangan hujjatlar:\n"
     for doc in docs:
         context += f"- {doc.original_name}: {(doc.content_text or '')[:500]}...\n"
+    return context
+
+
+async def get_employees_context(db: AsyncSession) -> str:
+    result = await db.execute(
+        select(User, Department.name)
+        .join(Department, User.department_id == Department.id, isouter=True)
+        .where(User.is_active == True)
+    )
+    rows = result.all()
+    if not rows:
+        return ""
+    
+    context = "\n\nTashkilot xodimlari va bo'limlari:\n"
+    for user, dept_name in rows:
+        context += f"- ID: {user.id}, Ism: {user.full_name}, Bo'lim: {dept_name or 'Noma`lum'}, Lavozim: {user.position or 'Xodim'}\n"
     return context
 
 
@@ -98,11 +107,16 @@ async def chat_with_ai(
 
     # Hujjatlar konteksti
     doc_context = await get_documents_context(db)
+    
+    # Xodimlar konteksti
+    emp_context = await get_employees_context(db)
 
     # Promptni tayyorlash
     system = SYSTEM_PROMPT
     if doc_context:
         system += doc_context
+    if emp_context:
+        system += emp_context
 
     # Tarixni matnga birlashtirish
     history_text = ""
@@ -116,6 +130,8 @@ async def chat_with_ai(
 
     result = {}
     try:
+        if client is None:
+            raise RuntimeError("GEMINI_API_KEY is not set")
         response = client.models.generate_content(
             model=GEMINI_MODEL,
             contents=full_prompt,
@@ -134,20 +150,6 @@ async def chat_with_ai(
     # Tarixga saqlash
     await save_message(db, telegram_id, "user", message)
     await save_message(db, telegram_id, "assistant", result.get("answer", ""))
-
-    # Agar vazifa aniqlansa - DBga saqlash
-    if result.get("task_title"):
-        task = Task(
-            title=result["task_title"],
-            department=result.get("responsible_department"),
-            priority=result.get("priority", "o'rta"),
-            source_document=result.get("source_document"),
-            status="pending",
-        )
-        db.add(task)
-        await db.commit()
-        await db.refresh(task)
-        result["task_id"] = task.id
 
     return result
 

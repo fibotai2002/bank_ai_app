@@ -386,66 +386,137 @@ class _ProfileScreenState extends State<ProfileScreen> {
               AppColors.accent, _showEditSheet),
           Divider(height: 1, indent: 46,
               color: isDark ? AppColors.darkBorder : AppColors.border),
-          // Dark/Light mode toggle
-          InkWell(
-            onTap: () => appState?.toggleTheme(),
-            borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.googleYellow.withValues(alpha: 0.15)
-                          : AppColors.googleBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                      size: 18,
-                      color: isDark ? AppColors.googleYellow : AppColors.googleBlue,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    isDark ? 'Yorug\' rejim' : 'Qorong\'u rejim',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? AppColors.darkText : AppColors.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.googleYellow.withValues(alpha: 0.15)
-                          : AppColors.googleBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      isDark ? '🌙 Dark' : '☀️ Light',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? AppColors.googleYellow : AppColors.googleBlue,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _themeTile(appState, isDark),
           Divider(height: 1, indent: 46,
               color: isDark ? AppColors.darkBorder : AppColors.border),
           _actionTile(Icons.logout_rounded, 'Chiqish',
               AppColors.error, _confirmLogout),
         ],
       ),
+    );
+  }
+
+  Widget _themeTile(dynamic appState, bool isDark) {
+    final mode = appState?.themeMode ?? ThemeMode.system;
+    final label = switch (mode) {
+      ThemeMode.system => 'Tizim bo‘yicha',
+      ThemeMode.light => 'Yorug‘ (Light)',
+      ThemeMode.dark => 'Qorong‘u (Dark)',
+    };
+
+    return InkWell(
+      onTap: () => _showThemePicker(appState),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(Icons.palette_outlined,
+                size: 20, color: isDark ? AppColors.darkTextSec : AppColors.textHint),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Theme',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? AppColors.darkText : AppColors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? AppColors.darkTextSec : AppColors.textSec)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: isDark ? AppColors.darkTextSec : AppColors.textHint),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showThemePicker(dynamic appState) {
+    if (appState == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final cardColor = isDark ? AppColors.darkSurface : AppColors.bg;
+        final border = isDark ? AppColors.darkBorder : AppColors.border;
+        final text = isDark ? AppColors.darkText : AppColors.textPrimary;
+        final sub = isDark ? AppColors.darkTextSec : AppColors.textSec;
+        final current = appState.themeMode;
+
+        Widget option(ThemeMode mode, String title, String subtitle, IconData icon) {
+          final selected = current == mode;
+          return ListTile(
+            leading: Icon(icon, color: selected ? AppColors.accent : sub),
+            title: Text(title, style: TextStyle(color: text, fontWeight: FontWeight.w600)),
+            subtitle: Text(subtitle, style: TextStyle(color: sub)),
+            trailing: selected
+                ? const Icon(Icons.check_rounded, color: AppColors.accent)
+                : null,
+            onTap: () {
+              Navigator.pop(context);
+              appState.setThemeMode(mode);
+            },
+          );
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            border: Border.all(color: border),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: border,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('Theme tanlang',
+                    style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                option(
+                  ThemeMode.system,
+                  'Tizim bo‘yicha',
+                  'Telefon sozlamasiga moslashadi',
+                  Icons.settings_suggest_outlined,
+                ),
+                option(
+                  ThemeMode.light,
+                  'Yorug‘ (Light)',
+                  'Doim light rejim',
+                  Icons.wb_sunny_outlined,
+                ),
+                option(
+                  ThemeMode.dark,
+                  'Qorong‘u (Dark)',
+                  'Doim dark rejim',
+                  Icons.dark_mode_outlined,
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

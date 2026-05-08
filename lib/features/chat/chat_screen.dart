@@ -32,6 +32,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _messages = <ChatMessage>[];
   bool _loading = false;
   int _telegramId = 0;
+  int _userId = 0;
 
   // Quick suggestions
   static const _suggestions = [
@@ -56,7 +57,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _loadId() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _telegramId = prefs.getInt('telegram_id') ?? 0);
+    setState(() {
+      _telegramId = prefs.getInt('telegram_id') ?? 0;
+      _userId = prefs.getInt('user_id') ?? 0;
+    });
   }
 
   Future<void> _send([String? text]) async {
@@ -69,7 +73,9 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollDown();
     try {
-      final res = await _api.chat(msg, _telegramId);
+      // user_id mavjud bo'lsa uni ishlatamiz, aks holda telegram_id
+      final chatId = _userId > 0 ? _userId : _telegramId;
+      final res = await _api.chat(msg, chatId);
       setState(() {
         _messages.add(ChatMessage(
           text: res['answer'] ?? '',
@@ -303,8 +309,9 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
   Widget _buildMessage(ChatMessage msg) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment:
             msg.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -317,44 +324,53 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               if (!msg.isUser) ...[
                 Container(
-                  width: 28,
-                  height: 28,
-                  margin: const EdgeInsets.only(right: 8, bottom: 2),
+                  width: 32,
+                  height: 32,
+                  margin: const EdgeInsets.only(right: 10, bottom: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.accentLight,
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppColors.accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.smart_toy_outlined,
-                      size: 14, color: AppColors.accent),
+                  child: const Icon(Icons.auto_awesome,
+                      size: 16, color: AppColors.accent),
                 ),
               ],
               Flexible(
                 child: Container(
                   constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75),
+                      maxWidth: MediaQuery.of(context).size.width * 0.78),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                      horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: msg.isUser
                         ? AppColors.accent
-                        : AppColors.surface,
+                        : (isDark ? AppColors.darkSurface2 : Colors.white),
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
                       bottomLeft:
-                          Radius.circular(msg.isUser ? 16 : 4),
+                          Radius.circular(msg.isUser ? 20 : 4),
                       bottomRight:
-                          Radius.circular(msg.isUser ? 4 : 16),
+                          Radius.circular(msg.isUser ? 4 : 20),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: msg.isUser ? null : Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
                   ),
                   child: Text(
                     msg.text,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       color: msg.isUser
                           ? Colors.white
-                          : AppColors.textPrimary,
-                      height: 1.45,
+                          : (isDark ? AppColors.darkText : AppColors.textPrimary),
+                      height: 1.5,
+                      fontWeight: msg.isUser ? FontWeight.w500 : FontWeight.w400,
                     ),
                   ),
                 ),
@@ -385,6 +401,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _taskCard(Map<String, dynamic> task) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final priority = task['priority'] ?? 'o\'rta';
     final priorityColor = priority == 'yuqori'
         ? AppColors.error
@@ -394,101 +411,117 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Container(
       constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.82),
+          maxWidth: MediaQuery.of(context).size.width * 0.85),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: priorityColor.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: priorityColor.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: priorityColor.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.assignment_turned_in_rounded, size: 14, color: priorityColor),
+                const SizedBox(width: 8),
+                const Text('AI tomonidan aniqlangan vazifa',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5)),
+              ],
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Text('📌 ',
-                        style: TextStyle(fontSize: 13)),
-                    const Text('Vazifa aniqlandi',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSec)),
-                    const Spacer(),
-                    if (task['task_id'] != null)
-                      Text('#${task['task_id']}',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textHint)),
-                  ],
-                ),
-                const SizedBox(height: 6),
                 Text(task['task_title'] ?? '',
                     style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3)),
+                const SizedBox(height: 12),
+                Row(
                   children: [
                     if ((task['responsible_department'] ?? '').isNotEmpty)
                       _badge(
                           '🏢 ${task['responsible_department']}',
-                          AppColors.surface,
-                          AppColors.textSec),
-                    _badge(priority,
-                        priorityColor.withOpacity(0.1), priorityColor),
+                          isDark ? AppColors.darkSurface2 : AppColors.surfaceVar,
+                          isDark ? AppColors.darkText : AppColors.textPrimary),
+                    const SizedBox(width: 8),
+                    _badge(priority.toUpperCase(),
+                        priorityColor.withOpacity(0.15), priorityColor),
                   ],
                 ),
-                if ((task['source_document'] ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text('📄 ${task['source_document']}',
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textHint),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                if ((task['deadline'] ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textHint),
+                      const SizedBox(width: 6),
+                      Text('Muddat: ${task['deadline']}',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
                 ],
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => _confirmTask(task),
-                  child: const Text('✅ Tasdiqlash',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.success)),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => _confirmTask(task),
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.success.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Tasdiqlash',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.success)),
+                  ),
                 ),
-              ),
-              Container(
-                  width: 1, height: 40, color: AppColors.border),
-              Expanded(
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text('👥 Boshqa xodim',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.accent)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {},
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.accent.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('O\'zgartirish',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.accent)),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

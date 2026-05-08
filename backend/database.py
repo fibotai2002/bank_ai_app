@@ -7,7 +7,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bank_ai.db")
+def _normalize_database_url(url: str) -> str:
+    """
+    Render/Neon/Supabase often provide `postgres://` / `postgresql://` URLs.
+    SQLAlchemy async needs `postgresql+asyncpg://`.
+    """
+    if not url:
+        return "sqlite+aiosqlite:///./bank_ai.db"
+
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+
+    if url.startswith("postgresql://") and "+asyncpg" not in url:
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    return url
+
+
+DATABASE_URL = _normalize_database_url(
+    os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bank_ai.db")
+)
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)

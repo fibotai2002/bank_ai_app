@@ -108,14 +108,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _greetingCard(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
+                    _aiInsightsPanel(),
+                    const SizedBox(height: 24),
                     if (_stats != null) _statsGrid(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     _quickActions(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     if (_recentTasks.isNotEmpty) _recentTasksSection(),
                     if (_role == 'admin' && _deptStats.isNotEmpty) ...[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       _deptStatsSection(),
                     ],
                   ],
@@ -126,62 +128,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _greetingCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.accent, Color(0xFF1D4ED8)],
+        color: isDark ? AppColors.darkSurface : AppColors.accent,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: AppColors.accent.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+        ],
+        gradient: isDark ? null : const LinearGradient(
+          colors: [AppColors.accent, Color(0xFF0D47A1)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$_greeting,',
-                  style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w400),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$_greeting,',
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: isDark ? AppColors.darkTextSec : Colors.white70,
+                        fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _fullName,
+                    style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _fullName,
+                child: Text(
+                  _roleLabel,
                   style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: Colors.white),
                 ),
-                if (_deptName.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+              ),
+            ],
+          ),
+          if (_deptName.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.account_balance_rounded, color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
                   Text(
                     _deptName,
                     style: const TextStyle(
-                        fontSize: 12, color: Colors.white60),
+                        fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(100),
-            ),
-            child: Text(
-              _roleLabel,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white),
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -215,44 +246,121 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _aiInsightsPanel() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = _stats;
+
+    // Real ma'lumotlardan insight yaratish
+    String insightText;
+    if (s == null) {
+      insightText = 'Ma\'lumotlar yuklanmoqda...';
+    } else {
+      final total = s['total_tasks'] ?? 0;
+      final pending = s['pending'] ?? 0;
+      final completed = s['completed'] ?? 0;
+      final inProgress = s['in_progress'] ?? 0;
+      final completionRate = total > 0 ? ((completed / total) * 100).round() : 0;
+
+      if (_role == 'admin') {
+        insightText = 'Jami $total ta vazifadan $completed ta bajarildi ($completionRate%). '
+            '$pending ta vazifa kutmoqda, $inProgress ta jarayonda.';
+      } else if (_role == 'manager') {
+        insightText = 'Bo\'limingizda $total ta vazifa mavjud. '
+            '$pending ta vazifa bajarilishini kutmoqda. '
+            'Bajarilish darajasi: $completionRate%.';
+      } else {
+        insightText = 'Sizga $total ta vazifa biriktirilgan. '
+            '$pending ta vazifa kutmoqda, $inProgress ta jarayonda. '
+            '$completed ta vazifa muvaffaqiyatli bajarildi.';
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface2 : const Color(0xFFF0F7FF),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.accent.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.auto_awesome, color: AppColors.accent, size: 18),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'AI Insights',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.accent),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            insightText,
+            style: TextStyle(
+                fontSize: 14,
+                color: isDark ? AppColors.darkText : AppColors.textPrimary,
+                height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _statCard(
       String label, String value, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 18, color: color),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              Icon(Icons.trending_up, size: 14, color: color.withOpacity(0.5)),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(value,
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: color)),
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.textSec),
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
+          const Spacer(),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppColors.darkText : AppColors.textPrimary,
+                  letterSpacing: -0.5)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textHint),
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );

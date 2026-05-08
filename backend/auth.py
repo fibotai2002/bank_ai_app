@@ -1,28 +1,39 @@
 import os
-import hashlib
-import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-import jwt
 
-SECRET_KEY = os.getenv("SECRET_KEY", "bank-ai-secret-key-2026")
+import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from passlib.context import CryptContext
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    import sys
+    print("❌ XATO: SECRET_KEY environment variable o'rnatilmagan!", file=sys.stderr)
+    # Production da ishlamaydi, development uchun fallback
+    SECRET_KEY = "dev-only-secret-key-change-in-production-2026"
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7 kun
 
 security = HTTPBearer(auto_error=False)
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    """Parolni SHA-256 bilan hash qilish"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return hash_password(plain_password) == hashed_password
+    # Backward-compat: old SHA-256 hashes were 64-hex chars.
+    if hashed_password and len(hashed_password) == 64:
+        import hashlib
+
+        return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: dict) -> str:

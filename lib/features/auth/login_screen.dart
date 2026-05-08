@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/api/api_client.dart';
+import '../../main.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLogin;
@@ -64,9 +66,21 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       widget.onLogin();
-    } catch (e) {
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
       setState(() {
-        _error = 'Username yoki parol noto\'g\'ri';
+        if (status == 401) {
+          _error = 'Username yoki parol noto\'g\'ri';
+        } else if (status != null) {
+          _error = 'Server xatosi ($status)';
+        } else {
+          _error = 'Serverga ulanib bo\'lmadi. Backend ishga tushganini tekshiring.';
+        }
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() {
+        _error = 'Kutilmagan xatolik. Qayta urinib ko\'ring.';
         _loading = false;
       });
     }
@@ -74,7 +88,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final root = BankAIApp.of(context);
+    final isDark = root?.isDark ?? false;
+
     return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 0,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -82,16 +103,35 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 48),
-              // Logo
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppColors.accentLight,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.business_rounded,
-                    color: AppColors.accent, size: 32),
+              Row(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentLight,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.business_rounded,
+                      color: AppColors.accent,
+                      size: 32,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: isDark
+                        ? 'Yorug\' rejimga o\'tish'
+                        : 'Tungi rejimga o\'tish',
+                    icon: Icon(
+                      isDark
+                          ? Icons.wb_sunny_outlined
+                          : Icons.dark_mode_outlined,
+                      color: AppColors.textSec,
+                    ),
+                    onPressed: () => BankAIApp.of(context)?.toggleTheme(),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               const Text(
@@ -222,6 +262,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 6),
                     _demoAccount('👤 Xodim', 'employee1', 'pass123',
                         AppColors.success),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Server: ${ApiClient.baseUrl}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textHint,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
                   ],
                 ),
               ),

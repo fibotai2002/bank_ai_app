@@ -2,34 +2,39 @@ import 'package:flutter/material.dart';
 
 // ── Google Material You ranglar ───────────────────────────────────────────────
 class AppColors {
-  // Google asosiy ranglar
-  static const googleBlue   = Color(0xFF4285F4);
-  static const googleRed    = Color(0xFFEA4335);
-  static const googleYellow = Color(0xFFFBBC05);
-  static const googleGreen  = Color(0xFF34A853);
+  // Google asosiy ranglar (premium variantlar)
+  static const googleBlue   = Color(0xFF1A73E8);
+  static const googleRed    = Color(0xFFD93025);
+  static const googleYellow = Color(0xFFF9AB00);
+  static const googleGreen  = Color(0xFF1E8E3E);
 
-  // Light mode
-  static const bg           = Color(0xFFFFFFFF);
-  static const surface      = Color(0xFFF8F9FA);
-  static const surfaceVar   = Color(0xFFE8F0FE);
-  static const border       = Color(0xFFE0E0E0);
-  static const accent       = Color(0xFF4285F4);   // Google Blue
+  // Light mode (Premium)
+  static const bg           = Color(0xFFFDFDFD);
+  static const surface      = Color(0xFFFFFFFF);
+  static const surfaceVar   = Color(0xFFF1F3F4);
+  static const border       = Color(0xFFE8EAED);
+  static const accent       = Color(0xFF1A73E8);
   static const accentLight  = Color(0xFFE8F0FE);
-  static const success      = Color(0xFF34A853);   // Google Green
-  static const warning      = Color(0xFFFBBC05);   // Google Yellow
-  static const error        = Color(0xFFEA4335);   // Google Red
+  static const success      = Color(0xFF1E8E3E);
+  static const warning      = Color(0xFFF9AB00);
+  static const error        = Color(0xFFD93025);
   static const textPrimary  = Color(0xFF202124);
   static const textSec      = Color(0xFF5F6368);
-  static const textHint     = Color(0xFF9AA0A6);
+  static const textHint     = Color(0xFF70757A);
 
-  // Dark mode
-  static const darkBg       = Color(0xFF121212);
-  static const darkSurface  = Color(0xFF1E1E1E);
-  static const darkSurface2 = Color(0xFF2D2D2D);
-  static const darkBorder   = Color(0xFF3C3C3C);
+  // Dark mode (Premium Deep Black)
+  static const darkBg       = Color(0xFF000000);
+  static const darkSurface  = Color(0xFF121212);
+  static const darkSurface2 = Color(0xFF1E1E1E);
+  static const darkBorder   = Color(0xFF2D2D2D);
   static const darkText     = Color(0xFFE8EAED);
   static const darkTextSec  = Color(0xFF9AA0A6);
-  static const darkAccent   = Color(0xFF8AB4F8);   // Google Blue light (dark mode)
+  static const darkAccent   = Color(0xFF8AB4F8);
+
+  // Glassmorphism colors
+  static const glassBg      = Color(0xCCFFFFFF);
+  static const glassDarkBg  = Color(0xCC121212);
+  static const glassBorder  = Color(0x33FFFFFF);
 
   // Nav bar colors per tab (Google style)
   static const navColors = [
@@ -164,27 +169,27 @@ class AppTheme {
     ),
     textTheme: const TextTheme(
       headlineLarge: TextStyle(
-        fontSize: 28, fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary, letterSpacing: -0.5,
+        fontSize: 32, fontWeight: FontWeight.w800,
+        color: AppColors.textPrimary, letterSpacing: -1.0,
       ),
       headlineMedium: TextStyle(
-        fontSize: 22, fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary, letterSpacing: -0.3,
+        fontSize: 24, fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary, letterSpacing: -0.5,
       ),
       titleLarge: TextStyle(
-        fontSize: 18, fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
+        fontSize: 20, fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary, letterSpacing: -0.2,
       ),
       titleMedium: TextStyle(
-        fontSize: 16, fontWeight: FontWeight.w600,
+        fontSize: 17, fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: TextStyle(fontSize: 15, color: AppColors.textPrimary),
-      bodyMedium: TextStyle(fontSize: 14, color: AppColors.textSec),
-      bodySmall: TextStyle(fontSize: 12, color: AppColors.textHint),
+      bodyLarge: TextStyle(fontSize: 16, color: AppColors.textPrimary, height: 1.5),
+      bodyMedium: TextStyle(fontSize: 15, color: AppColors.textSec, height: 1.4),
+      bodySmall: TextStyle(fontSize: 13, color: AppColors.textHint),
       labelLarge: TextStyle(
-        fontSize: 14, fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
+        fontSize: 14, fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary, letterSpacing: 0.1,
       ),
     ),
   );
