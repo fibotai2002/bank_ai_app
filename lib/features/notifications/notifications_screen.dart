@@ -46,15 +46,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: bgColor,
         title: Row(
           children: [
             const Text('Bildirishnomalar'),
             if (_unreadCount > 0) ...[
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.error,
                   borderRadius: BorderRadius.circular(100),
@@ -80,9 +87,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             onPressed: _load,
           ),
         ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: AppColors.border),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: borderColor),
         ),
       ),
       body: _loading
@@ -90,7 +97,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: CircularProgressIndicator(
                   color: AppColors.accent, strokeWidth: 2))
           : _notifs.isEmpty
-              ? _empty()
+              ? _empty(isDark)
               : RefreshIndicator(
                   color: AppColors.accent,
                   onRefresh: _load,
@@ -98,13 +105,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     padding: const EdgeInsets.all(16),
                     itemCount: _notifs.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _notifTile(_notifs[i]),
+                    itemBuilder: (_, i) => _notifTile(_notifs[i], isDark),
                   ),
                 ),
     );
   }
 
-  Widget _notifTile(Map n) {
+  Widget _notifTile(Map n, bool isDark) {
     final isRead = n['is_read'] == true;
     final type = n['type'] ?? 'info';
 
@@ -113,35 +120,47 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'success': Icons.check_circle_outline,
       'warning': Icons.warning_amber_outlined,
       'info': Icons.info_outline_rounded,
-    }[type] ?? Icons.notifications_outlined;
+    }[type] ??
+        Icons.notifications_outlined;
 
     final typeColor = {
       'task': AppColors.accent,
       'success': AppColors.success,
       'warning': AppColors.warning,
       'info': const Color(0xFF0891B2),
-    }[type] ?? AppColors.accent;
+    }[type] ??
+        AppColors.accent;
+
+    // Unread background color
+    final unreadBg = isDark
+        ? AppColors.darkAccent.withOpacity(0.08)
+        : AppColors.accentLight.withOpacity(0.4);
+    final readBg = isDark ? AppColors.darkSurface : AppColors.bg;
+    final unreadBorder = isDark
+        ? AppColors.darkAccent.withOpacity(0.25)
+        : AppColors.accent.withOpacity(0.3);
+    final readBorder = isDark ? AppColors.darkBorder : AppColors.border;
 
     return GestureDetector(
       onTap: isRead ? null : () => _markRead(n['id']),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isRead ? AppColors.bg : AppColors.accentLight.withOpacity(0.3),
+          color: isRead ? readBg : unreadBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isRead ? AppColors.border : AppColors.accent.withOpacity(0.3),
+            color: isRead ? readBorder : unreadBorder,
           ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+                color: typeColor.withOpacity(isDark ? 0.2 : 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(typeIcon, size: 18, color: typeColor),
             ),
@@ -157,10 +176,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           n['title'] ?? '',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: isRead
-                                ? FontWeight.w500
-                                : FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            fontWeight:
+                                isRead ? FontWeight.w500 : FontWeight.w700,
+                            color: isDark
+                                ? AppColors.darkText
+                                : AppColors.textPrimary,
                           ),
                         ),
                       ),
@@ -178,14 +198,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     n['body'] ?? '',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSec, height: 1.4),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppColors.darkTextSec
+                            : AppColors.textSec,
+                        height: 1.4),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     _formatTime(n['created_at'] ?? ''),
-                    style: const TextStyle(
-                        fontSize: 10, color: AppColors.textHint),
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: isDark
+                            ? AppColors.darkTextSec
+                            : AppColors.textHint),
                   ),
                 ],
               ),
@@ -211,18 +238,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  Widget _empty() => Center(
+  Widget _empty(bool isDark) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.notifications_none_rounded,
-                size: 48, color: AppColors.textHint),
-            SizedBox(height: 12),
+                size: 56,
+                color: isDark ? AppColors.darkTextSec : AppColors.textHint),
+            const SizedBox(height: 12),
             Text('Bildirishnomalar yo\'q',
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSec)),
+                    color:
+                        isDark ? AppColors.darkTextSec : AppColors.textSec)),
           ],
         ),
       );

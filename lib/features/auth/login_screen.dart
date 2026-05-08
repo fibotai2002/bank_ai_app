@@ -90,11 +90,20 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final root = BankAIApp.of(context);
     final isDark = root?.isDark ?? false;
+    final textPrimary = isDark ? AppColors.darkText : AppColors.textPrimary;
+    final textSec = isDark ? AppColors.darkTextSec : AppColors.textSec;
+    final textHint = isDark ? AppColors.darkTextSec : AppColors.textHint;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.surface;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final accentIconColor = isDark ? AppColors.darkAccent : AppColors.accent;
+    final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
 
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
         toolbarHeight: 0,
         elevation: 0,
+        backgroundColor: bgColor,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -109,12 +118,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: AppColors.accentLight,
+                      color: isDark
+                          ? AppColors.darkAccent.withOpacity(0.15)
+                          : AppColors.accentLight,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.business_rounded,
-                      color: AppColors.accent,
+                      color: accentIconColor,
                       size: 32,
                     ),
                   ),
@@ -127,62 +138,66 @@ class _LoginScreenState extends State<LoginScreen> {
                       isDark
                           ? Icons.wb_sunny_outlined
                           : Icons.dark_mode_outlined,
-                      color: AppColors.textSec,
+                      color: textSec,
                     ),
                     onPressed: () => BankAIApp.of(context)?.toggleTheme(),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Tashkilot AI',
                 style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary),
+                    color: textPrimary),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Boshqaruv tizimiga kiring',
-                style: TextStyle(fontSize: 15, color: AppColors.textSec),
+                style: TextStyle(fontSize: 15, color: textSec),
               ),
               const SizedBox(height: 40),
 
               // Username
-              _label('Username'),
+              _label('Username', textPrimary),
               const SizedBox(height: 8),
               TextField(
                 controller: _userCtrl,
                 autofocus: true,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
+                style: TextStyle(color: textPrimary),
+                decoration: InputDecoration(
                   hintText: 'admin, manager1, employee1...',
+                  hintStyle: TextStyle(color: textHint),
                   prefixIcon: Icon(Icons.person_outline_rounded,
-                      size: 20, color: AppColors.textHint),
+                      size: 20, color: textHint),
                 ),
                 onSubmitted: (_) => FocusScope.of(context).nextFocus(),
               ),
               const SizedBox(height: 16),
 
               // Parol
-              _label('Parol'),
+              _label('Parol', textPrimary),
               const SizedBox(height: 8),
               TextField(
                 controller: _passCtrl,
                 obscureText: _obscure,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _login(),
+                style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
                   hintText: '••••••••',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded,
-                      size: 20, color: AppColors.textHint),
+                  hintStyle: TextStyle(color: textHint),
+                  prefixIcon: Icon(Icons.lock_outline_rounded,
+                      size: 20, color: textHint),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscure
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
                       size: 20,
-                      color: AppColors.textHint,
+                      color: textHint,
                     ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
@@ -234,40 +249,40 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: surfaceColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: borderColor),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.info_outline_rounded,
-                            size: 16, color: AppColors.accent),
-                        SizedBox(width: 6),
+                            size: 16, color: accentIconColor),
+                        const SizedBox(width: 6),
                         Text('Demo hisoblar',
                             style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.accent)),
+                                color: accentIconColor)),
                       ],
                     ),
                     const SizedBox(height: 10),
                     _demoAccount('👑 Admin', 'admin', 'admin123',
-                        AppColors.error),
+                        AppColors.error, textHint),
                     const SizedBox(height: 6),
                     _demoAccount('🏢 Manager', 'manager1', 'pass123',
-                        AppColors.accent),
+                        AppColors.accent, textHint),
                     const SizedBox(height: 6),
                     _demoAccount('👤 Xodim', 'employee1', 'pass123',
-                        AppColors.success),
+                        AppColors.success, textHint),
                     const SizedBox(height: 10),
                     Text(
                       'Server: ${ApiClient.baseUrl}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textHint,
+                        color: textHint,
                         fontFamily: 'monospace',
                       ),
                     ),
@@ -281,16 +296,16 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _label(String text) => Text(
+  Widget _label(String text, Color color) => Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary),
+            color: color),
       );
 
   Widget _demoAccount(
-      String role, String username, String pass, Color color) {
+      String role, String username, String pass, Color color, Color hintColor) {
     return GestureDetector(
       onTap: () {
         _userCtrl.text = username;
@@ -313,9 +328,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: color)),
             const Spacer(),
             Text('$username / $pass',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.textHint,
+                    color: hintColor,
                     fontFamily: 'monospace')),
             const SizedBox(width: 6),
             Icon(Icons.touch_app_outlined, size: 14, color: color),

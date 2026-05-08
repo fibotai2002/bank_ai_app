@@ -72,16 +72,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String get _roleLabel {
     switch (_role) {
-      case 'admin': return '👑 Admin';
-      case 'manager': return '🏢 Manager';
-      default: return '👤 Xodim';
+      case 'admin':
+        return '👑 Admin';
+      case 'manager':
+        return '🏢 Manager';
+      default:
+        return '👤 Xodim';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: bgColor,
         title: const Text('Bosh sahifa'),
         actions: [
           IconButton(
@@ -89,9 +98,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: _load,
           ),
         ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: AppColors.border),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: borderColor),
         ),
       ),
       body: _loading
@@ -107,19 +116,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _greetingCard(),
-                    const SizedBox(height: 24),
-                    _aiInsightsPanel(),
-                    const SizedBox(height: 24),
-                    if (_stats != null) _statsGrid(),
-                    const SizedBox(height: 24),
-                    _quickActions(),
-                    const SizedBox(height: 24),
-                    if (_recentTasks.isNotEmpty) _recentTasksSection(),
+                    _greetingCard(isDark),
+                    const SizedBox(height: 20),
+                    _aiInsightsPanel(isDark),
+                    const SizedBox(height: 20),
+                    if (_stats != null) _statsGrid(isDark),
+                    const SizedBox(height: 20),
+                    _quickActions(isDark),
+                    const SizedBox(height: 20),
+                    if (_recentTasks.isNotEmpty) _recentTasksSection(isDark),
                     if (_role == 'admin' && _deptStats.isNotEmpty) ...[
-                      const SizedBox(height: 24),
-                      _deptStatsSection(),
+                      const SizedBox(height: 20),
+                      _deptStatsSection(isDark),
                     ],
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -127,26 +137,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _greetingCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _greetingCard(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.accent,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: AppColors.accent.withOpacity(0.3),
+              color: AppColors.accent.withOpacity(0.25),
               blurRadius: 20,
-              offset: const Offset(0, 10),
+              offset: const Offset(0, 8),
             ),
         ],
-        gradient: isDark ? null : const LinearGradient(
-          colors: [AppColors.accent, Color(0xFF0D47A1)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: isDark
+            ? LinearGradient(
+                colors: [AppColors.darkSurface, AppColors.darkSurface2],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : const LinearGradient(
+                colors: [AppColors.accent, Color(0xFF0D47A1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+        border: isDark
+            ? Border.all(color: AppColors.darkBorder)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,60 +171,83 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$_greeting,',
-                    style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? AppColors.darkTextSec : Colors.white70,
-                        fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _fullName,
-                    style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5),
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$_greeting,',
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: isDark
+                              ? AppColors.darkTextSec
+                              : Colors.white.withOpacity(0.8),
+                          fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _fullName,
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? AppColors.darkText : Colors.white,
+                          letterSpacing: -0.5),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  color: isDark
+                      ? AppColors.darkBorder
+                      : Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: isDark
+                          ? AppColors.darkBorder
+                          : Colors.white.withOpacity(0.2)),
                 ),
                 child: Text(
                   _roleLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white),
+                      color: isDark ? AppColors.darkText : Colors.white),
                 ),
               ),
             ],
           ),
           if (_deptName.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+                color: isDark
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.black.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.account_balance_rounded, color: Colors.white70, size: 16),
+                  Icon(Icons.account_balance_rounded,
+                      color: isDark
+                          ? AppColors.darkTextSec
+                          : Colors.white.withOpacity(0.8),
+                      size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    _deptName,
-                    style: const TextStyle(
-                        fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
+                  Expanded(
+                    child: Text(
+                      _deptName,
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? AppColors.darkText : Colors.white,
+                          fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -218,7 +258,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _statsGrid() {
+  Widget _statsGrid(bool isDark) {
     final s = _stats!;
     return GridView.count(
       crossAxisCount: 2,
@@ -229,58 +269,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
       childAspectRatio: 1.6,
       children: [
         _statCard('Jami vazifa', '${s['total_tasks'] ?? 0}',
-            Icons.assignment_outlined, AppColors.accent),
+            Icons.assignment_outlined, AppColors.accent, isDark),
         _statCard('Kutilmoqda', '${s['pending'] ?? 0}',
-            Icons.hourglass_empty_rounded, AppColors.warning),
+            Icons.hourglass_empty_rounded, AppColors.warning, isDark),
         _statCard('Jarayonda', '${s['in_progress'] ?? 0}',
-            Icons.autorenew_rounded, AppColors.accent),
+            Icons.autorenew_rounded, AppColors.accent, isDark),
         _statCard('Bajarildi', '${s['completed'] ?? 0}',
-            Icons.check_circle_outline, AppColors.success),
+            Icons.check_circle_outline, AppColors.success, isDark),
         if (_role == 'admin') ...[
           _statCard('Xodimlar', '${s['total_employees'] ?? 0}',
-              Icons.people_outline_rounded, const Color(0xFF7C3AED)),
+              Icons.people_outline_rounded, const Color(0xFF7C3AED), isDark),
           _statCard('Bo\'limlar', '${s['total_departments'] ?? 0}',
-              Icons.business_outlined, const Color(0xFF0891B2)),
+              Icons.business_outlined, const Color(0xFF0891B2), isDark),
         ],
       ],
     );
   }
 
-  Widget _aiInsightsPanel() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final s = _stats;
-
-    // Real ma'lumotlardan insight yaratish
-    String insightText;
-    if (s == null) {
-      insightText = 'Ma\'lumotlar yuklanmoqda...';
-    } else {
-      final total = s['total_tasks'] ?? 0;
-      final pending = s['pending'] ?? 0;
-      final completed = s['completed'] ?? 0;
-      final inProgress = s['in_progress'] ?? 0;
-      final completionRate = total > 0 ? ((completed / total) * 100).round() : 0;
-
-      if (_role == 'admin') {
-        insightText = 'Jami $total ta vazifadan $completed ta bajarildi ($completionRate%). '
-            '$pending ta vazifa kutmoqda, $inProgress ta jarayonda.';
-      } else if (_role == 'manager') {
-        insightText = 'Bo\'limingizda $total ta vazifa mavjud. '
-            '$pending ta vazifa bajarilishini kutmoqda. '
-            'Bajarilish darajasi: $completionRate%.';
-      } else {
-        insightText = 'Sizga $total ta vazifa biriktirilgan. '
-            '$pending ta vazifa kutmoqda, $inProgress ta jarayonda. '
-            '$completed ta vazifa muvaffaqiyatli bajarildi.';
-      }
-    }
-
+  Widget _aiInsightsPanel(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface2 : const Color(0xFFF0F7FF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.accent.withOpacity(0.1)),
+        border: Border.all(
+            color: isDark
+                ? AppColors.darkBorder
+                : AppColors.accent.withOpacity(0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,10 +305,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.1),
+                  color: AppColors.accent.withOpacity(isDark ? 0.2 : 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.auto_awesome, color: AppColors.accent, size: 18),
+                child: const Icon(Icons.auto_awesome,
+                    color: AppColors.accent, size: 18),
               ),
               const SizedBox(width: 12),
               const Text(
@@ -307,7 +323,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            insightText,
+            _role == 'admin'
+                ? (_stats != null && _stats!.isNotEmpty
+                    ? 'Jami ${_stats!['total_tasks'] ?? 0} ta vazifadan ${_stats!['completed'] ?? 0} tasi bajarildi. Kutilayotgan: ${_stats!['pending'] ?? 0} ta.'
+                    : 'AI tahlili yuklanmoqda...')
+                : (_stats != null && _stats!.isNotEmpty
+                    ? 'Sizda ${_stats!['pending'] ?? 0} ta kutilayotgan vazifa bor. AI yordamida samarali rejalashtiring.'
+                    : 'AI tahlili yuklanmoqda...'),
             style: TextStyle(
                 fontSize: 14,
                 color: isDark ? AppColors.darkText : AppColors.textPrimary,
@@ -319,14 +341,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _statCard(
-      String label, String value, IconData icon, Color color) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+      String label, String value, IconData icon, Color color, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+        border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,12 +361,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withOpacity(isDark ? 0.2 : 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 16, color: color),
               ),
-              Icon(Icons.trending_up, size: 14, color: color.withOpacity(0.5)),
+              Icon(Icons.trending_up,
+                  size: 14, color: color.withOpacity(0.5)),
             ],
           ),
           const Spacer(),
@@ -356,25 +379,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   letterSpacing: -0.5)),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 12, 
+              style: TextStyle(
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textHint),
+                  color: isDark ? AppColors.darkTextSec : AppColors.textHint),
               overflow: TextOverflow.ellipsis),
         ],
       ),
     );
   }
 
-  Widget _quickActions() {
+  Widget _quickActions(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Tezkor amallar',
+        Text('Tezkor amallar',
             style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary)),
+                color: isDark ? AppColors.darkText : AppColors.textPrimary)),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -384,6 +407,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'Vazifalar',
                 AppColors.accent,
                 widget.onNavigateToTasks,
+                isDark,
               ),
             ),
             const SizedBox(width: 10),
@@ -393,6 +417,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'AI Chat',
                 const Color(0xFF7C3AED),
                 widget.onNavigateToChat,
+                isDark,
               ),
             ),
           ],
@@ -401,20 +426,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _actionBtn(
-      IconData icon, String label, Color color, VoidCallback? onTap) {
+  Widget _actionBtn(IconData icon, String label, Color color,
+      VoidCallback? onTap, bool isDark) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.2)),
+          color: color.withOpacity(isDark ? 0.15 : 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(isDark ? 0.3 : 0.2)),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 24, color: color),
+            Icon(icon, size: 26, color: color),
             const SizedBox(height: 6),
             Text(label,
                 style: TextStyle(
@@ -427,18 +452,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _recentTasksSection() {
+  Widget _recentTasksSection(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('So\'nggi vazifalar',
+            Text('So\'nggi vazifalar',
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary)),
+                    color:
+                        isDark ? AppColors.darkText : AppColors.textPrimary)),
             GestureDetector(
               onTap: widget.onNavigateToTasks,
               child: const Text('Barchasi →',
@@ -450,12 +476,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         const SizedBox(height: 10),
-        ..._recentTasks.map((t) => _miniTaskTile(t)),
+        ..._recentTasks.map((t) => _miniTaskTile(t, isDark)),
       ],
     );
   }
 
-  Widget _miniTaskTile(Map t) {
+  Widget _miniTaskTile(Map t, bool isDark) {
     final status = t['status'] ?? 'pending';
     final statusColor = status == 'completed'
         ? AppColors.success
@@ -472,9 +498,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.bg,
+        color: isDark ? AppColors.darkSurface : AppColors.bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.border),
       ),
       child: Row(
         children: [
@@ -492,24 +519,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(t['title'] ?? '',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary),
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.textPrimary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
                 if ((t['assignee_name'] ?? '').isNotEmpty)
                   Text(t['assignee_name'],
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textSec)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? AppColors.darkTextSec
+                              : AppColors.textSec)),
               ],
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withOpacity(isDark ? 0.2 : 0.1),
               borderRadius: BorderRadius.circular(100),
             ),
             child: Text(statusLabel,
@@ -523,33 +554,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _deptStatsSection() {
+  Widget _deptStatsSection(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Bo\'limlar statistikasi',
+        Text('Bo\'limlar statistikasi',
             style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary)),
+                color: isDark ? AppColors.darkText : AppColors.textPrimary)),
         const SizedBox(height: 10),
-        ..._deptStats.take(5).map((d) => _deptTile(d)),
+        ..._deptStats.take(5).map((d) => _deptTile(d, isDark)),
       ],
     );
   }
 
-  Widget _deptTile(Map d) {
+  Widget _deptTile(Map d, bool isDark) {
     final total = (d['total'] ?? 1) as int;
     final completed = (d['completed'] ?? 0) as int;
     final progress = total > 0 ? completed / total : 0.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        color: isDark ? AppColors.darkSurface : AppColors.bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,15 +591,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Expanded(
                 child: Text(d['department'] ?? '',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.textPrimary),
                     overflow: TextOverflow.ellipsis),
               ),
               Text('$completed/$total',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSec)),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.darkTextSec
+                          : AppColors.textSec)),
             ],
           ),
           const SizedBox(height: 8),
@@ -575,7 +612,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor: AppColors.border,
+              backgroundColor:
+                  isDark ? AppColors.darkBorder : AppColors.border,
               color: AppColors.success,
               minHeight: 6,
             ),

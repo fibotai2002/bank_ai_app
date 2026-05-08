@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// ignore: unused_import — WebSocket Tez orada aktivlashtirish uchun tayyor
+// import 'package:web_socket_channel/web_socket_channel.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -144,7 +146,14 @@ class _BankAIAppState extends State<BankAIApp> {
     _saveTheme();
   }
 
-  bool get isDark => _themeMode == ThemeMode.dark;
+  bool get isDark {
+    if (_themeMode == ThemeMode.dark) return true;
+    if (_themeMode == ThemeMode.light) return false;
+    // system
+    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    return brightness == Brightness.dark;
+  }
+
   ThemeMode get themeMode => _themeMode;
 
   Future<void> _saveTheme() async {
@@ -208,9 +217,38 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   int _unreadNotifs = 0;
   int _pendingTasks = 0;
+  String _fullName = '';
   final _api = ApiClient();
 
-  // Tab konfiguratsiyasi: icon, activeIcon, label, rang
+  // WebSocket — real-time bildirishnomalar
+  // TODO: WebSocket real-time bildirishnomalar — Tez orada!
+  // WebSocketChannel? _wsChannel;
+  // void _connectWebSocket(int userId, String token) {
+  //   final wsUrl = ApiClient.baseUrl
+  //       .replaceFirst('https://', 'wss://')
+  //       .replaceFirst('http://', 'ws://');
+  //   try {
+  //     _wsChannel = WebSocketChannel.connect(
+  //       Uri.parse('$wsUrl/ws/$userId?token=$token'),
+  //     );
+  //     _wsChannel!.stream.listen(
+  //       (msg) {
+  //         // Yangi bildirishnoma keldi — badge yangilash
+  //         if (mounted) setState(() => _unreadNotifs++);
+  //       },
+  //       onDone: () {
+  //         // Ulanish uzildi — 5 soniyadan keyin qayta ulanish
+  //         Future.delayed(const Duration(seconds: 5), () {
+  //           if (mounted) _connectWebSocket(userId, token);
+  //         });
+  //       },
+  //       onError: (_) {},
+  //       cancelOnError: false,
+  //     );
+  //   } catch (_) {}
+  // }
+
+  // Faqat 5 ta tab - Profile va Notifications AppBar ga ko'chirildi
   static const _tabs = [
     _TabInfo(
       icon: Icons.home_outlined,
@@ -222,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
       icon: Icons.auto_awesome_outlined,
       activeIcon: Icons.auto_awesome_rounded,
       label: 'AI Chat',
-      color: AppColors.googleRed,
+      color: Color(0xFF7C3AED),
     ),
     _TabInfo(
       icon: Icons.task_alt_outlined,
@@ -242,18 +280,6 @@ class _HomeScreenState extends State<HomeScreen> {
       label: 'Hujjatlar',
       color: AppColors.googleBlue,
     ),
-    _TabInfo(
-      icon: Icons.notifications_outlined,
-      activeIcon: Icons.notifications_rounded,
-      label: 'Xabarlar',
-      color: AppColors.googleRed,
-    ),
-    _TabInfo(
-      icon: Icons.account_circle_outlined,
-      activeIcon: Icons.account_circle_rounded,
-      label: 'Profil',
-      color: AppColors.googleGreen,
-    ),
   ];
 
   @override
@@ -264,6 +290,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadBadges() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        setState(() {
+          _fullName = prefs.getString('full_name') ?? '';
+        });
+      }
       final notifs = await _api.getMyNotifications();
       final tasks = await _api.getTasks(status: 'pending');
       if (mounted) {
@@ -284,30 +316,150 @@ class _HomeScreenState extends State<HomeScreen> {
         const TasksScreen(),
         const EmployeesScreen(),
         const DocumentsScreen(),
-        const NotificationsScreen(),
-        ProfileScreen(onLogout: widget.onLogout),
       ];
+
+  String get _initials {
+    final parts = _fullName.trim().split(' ');
+    if (parts.isEmpty || _fullName.isEmpty) return '?';
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  void _openNotifications() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    ).then((_) => _loadBadges());
+  }
+
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(onLogout: widget.onLogout),
+      ),
+    ).then((_) => _loadBadges());
+  }
 
   @override
   Widget build(BuildContext context) {
-    final root = BankAIApp.of(context);
-    final isRootDark = root?.isDark ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final textColor = isDark ? AppColors.darkText : AppColors.textPrimary;
+    final textSecColor = isDark ? AppColors.darkTextSec : AppColors.textHint;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tashkilot AI'),
+        backgroundColor: bgColor,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.account_balance_rounded,
+                  size: 18, color: AppColors.accent),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Tashkilot AI',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
+        ),
         actions: [
+          // Theme toggle
           IconButton(
-            tooltip: isRootDark ? 'Yorug\' rejimga o\'tish' : 'Tungi rejimga o\'tish',
+            tooltip: isDark ? 'Yorug\' rejim' : 'Tungi rejim',
             icon: Icon(
-              isRootDark ? Icons.wb_sunny_outlined : Icons.dark_mode_outlined,
+              isDark ? Icons.wb_sunny_outlined : Icons.dark_mode_outlined,
+              size: 22,
+              color: textSecColor,
             ),
             onPressed: () => BankAIApp.of(context)?.toggleTheme(),
           ),
+          // Notifications bell with badge
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                tooltip: 'Bildirishnomalar',
+                icon: Icon(
+                  _unreadNotifs > 0
+                      ? Icons.notifications_rounded
+                      : Icons.notifications_outlined,
+                  size: 24,
+                  color: _unreadNotifs > 0 ? AppColors.googleRed : textSecColor,
+                ),
+                onPressed: _openNotifications,
+              ),
+              if (_unreadNotifs > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.googleRed,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: bgColor, width: 1.5),
+                    ),
+                    child: Text(
+                      _unreadNotifs > 99 ? '99+' : '$_unreadNotifs',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Profile avatar
+          GestureDetector(
+            onTap: _openProfile,
+            child: Container(
+              margin: const EdgeInsets.only(right: 12, left: 4),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.accent.withOpacity(0.3),
+                  width: 1.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                _initials,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.accent,
+                ),
+              ),
+            ),
+          ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: borderColor),
+        ),
       ),
       body: IndexedStack(index: _tab, children: _screens),
       bottomNavigationBar: Container(
@@ -326,19 +478,23 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: SafeArea(
           child: SizedBox(
-            height: 60,
+            height: 62,
             child: Row(
               children: List.generate(_tabs.length, (i) {
                 final tab = _tabs[i];
                 final isActive = _tab == i;
-                final color = isActive ? tab.color : (isDark ? AppColors.darkTextSec : AppColors.textHint);
+                final color = isActive
+                    ? tab.color
+                    : (isDark ? AppColors.darkTextSec : AppColors.textHint);
 
                 return Expanded(
                   child: GestureDetector(
                     onTap: () {
                       setState(() => _tab = i);
-                      if (i == 5) {
-                        Future.delayed(const Duration(milliseconds: 500), _loadBadges);
+                      if (i == 2) {
+                        // Vazifalar tab - badges refresh
+                        Future.delayed(
+                            const Duration(milliseconds: 500), _loadBadges);
                       }
                     },
                     behavior: HitTestBehavior.opaque,
@@ -347,14 +503,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Badge yoki icon
-                          _buildTabIcon(i, isActive, color, tab),
+                          _buildTabIcon(i, isActive, color, tab, isDark, bgColor),
                           const SizedBox(height: 3),
                           AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 200),
                             style: TextStyle(
                               fontSize: isActive ? 10.5 : 10,
-                              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                              fontWeight: isActive
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
                               color: color,
                               letterSpacing: 0.1,
                             ),
@@ -373,10 +530,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTabIcon(int i, bool isActive, Color color, _TabInfo tab) {
+  Widget _buildTabIcon(int i, bool isActive, Color color, _TabInfo tab,
+      bool isDark, Color bgColor) {
     int badge = 0;
     if (i == 2) badge = _pendingTasks;
-    if (i == 5) badge = _unreadNotifs;
 
     final iconWidget = AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
@@ -402,12 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 color: AppColors.googleRed,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.darkBg
-                      : AppColors.bg,
-                  width: 1.5,
-                ),
+                border: Border.all(color: bgColor, width: 1.5),
               ),
               child: Text(
                 badge > 99 ? '99+' : '$badge',

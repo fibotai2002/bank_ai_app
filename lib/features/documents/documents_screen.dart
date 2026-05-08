@@ -45,7 +45,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],
+        allowedExtensions: [
+          'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'
+        ],
         allowMultiple: false,
       );
       if (result == null || result.files.isEmpty) return;
@@ -54,16 +56,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       final name = result.files.first.name;
       final size = result.files.first.size;
 
-      // Hajm tekshirish (10MB)
       if (size > 10 * 1024 * 1024) {
         if (mounted) {
-          _showSnack('❌ Fayl hajmi 10MB dan oshmasligi kerak', AppColors.error);
+          _showSnack(
+              '❌ Fayl hajmi 10MB dan oshmasligi kerak', AppColors.error);
         }
         return;
       }
 
       setState(() => _uploading = true);
-
       await _api.uploadDocument(file, _telegramId);
       await _load();
 
@@ -80,19 +81,32 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   Future<void> _deleteDoc(int id, String name) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hujjatni o\'chirish',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        backgroundColor: isDark ? AppColors.darkSurface : AppColors.bg,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Hujjatni o\'chirish',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color:
+                    isDark ? AppColors.darkText : AppColors.textPrimary)),
         content: Text('«$name» hujjatini o\'chirishni tasdiqlaysizmi?',
-            style: const TextStyle(fontSize: 14, color: AppColors.textSec)),
+            style: TextStyle(
+                fontSize: 14,
+                color:
+                    isDark ? AppColors.darkTextSec : AppColors.textSec)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Bekor qilish',
-                style: TextStyle(color: AppColors.textSec)),
+            child: Text('Bekor qilish',
+                style: TextStyle(
+                    color: isDark
+                        ? AppColors.darkTextSec
+                        : AppColors.textSec)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -118,17 +132,20 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       content: Text(msg),
       backgroundColor: color,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
   }
 
   void _showDocDetail(Map doc) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _DocDetailSheet(
         doc: doc,
+        isDark: isDark,
         onDelete: () {
           Navigator.pop(context);
           _deleteDoc(doc['id'], doc['original_name'] ?? '');
@@ -139,8 +156,17 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final accentLight =
+        isDark ? AppColors.darkAccent.withOpacity(0.15) : AppColors.accentLight;
+    final accentText = isDark ? AppColors.darkAccent : AppColors.accent;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: bgColor,
         title: Row(
           children: [
             const Text('Hujjatlar'),
@@ -150,14 +176,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.1),
+                  color: accentLight,
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: Text('${_docs.length}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.accent)),
+                        color: accentText)),
               ),
             ],
           ],
@@ -168,9 +194,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             onPressed: _load,
           ),
         ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: AppColors.border),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: borderColor),
         ),
       ),
       body: _loading
@@ -179,12 +205,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   color: AppColors.accent, strokeWidth: 2))
           : Column(
               children: [
-                // Upload banner
-                _uploadBanner(),
-                // List
+                _uploadBanner(isDark),
                 Expanded(
                   child: _docs.isEmpty
-                      ? _emptyState()
+                      ? _emptyState(isDark)
                       : RefreshIndicator(
                           color: AppColors.accent,
                           onRefresh: _load,
@@ -193,7 +217,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                             itemCount: _docs.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 8),
-                            itemBuilder: (_, i) => _docTile(_docs[i]),
+                            itemBuilder: (_, i) =>
+                                _docTile(_docs[i], isDark),
                           ),
                         ),
                 ),
@@ -218,14 +243,19 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  Widget _uploadBanner() {
+  Widget _uploadBanner(bool isDark) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: isDark
+            ? AppColors.darkAccent.withOpacity(0.1)
+            : AppColors.accentLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.2)),
+        border: Border.all(
+            color: isDark
+                ? AppColors.darkAccent.withOpacity(0.2)
+                : AppColors.accent.withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -233,14 +263,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.15),
+              color: AppColors.accent.withOpacity(isDark ? 0.2 : 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.info_outline_rounded,
-                size: 18, color: AppColors.accent),
+            child: Icon(Icons.info_outline_rounded,
+                size: 18,
+                color: isDark ? AppColors.darkAccent : AppColors.accent),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -248,11 +279,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.accent)),
-                SizedBox(height: 2),
+                        color: isDark
+                            ? AppColors.darkAccent
+                            : AppColors.accent)),
+                const SizedBox(height: 2),
                 Text('PDF, DOC, DOCX, TXT, JPG, PNG • Max 10MB',
                     style: TextStyle(
-                        fontSize: 11, color: AppColors.textSec)),
+                        fontSize: 11,
+                        color: isDark
+                            ? AppColors.darkTextSec
+                            : AppColors.textSec)),
               ],
             ),
           ),
@@ -261,29 +297,30 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  Widget _docTile(Map doc) {
+  Widget _docTile(Map doc, bool isDark) {
     final name = doc['original_name'] ?? 'Noma\'lum';
     final type = doc['file_type'] ?? '';
     final size = doc['file_size'] ?? 0;
     final createdAt = _formatDate(doc['created_at']);
+    final tileColor = isDark ? AppColors.darkSurface : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
 
     return GestureDetector(
       onTap: () => _showDocDetail(doc),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.bg,
+          color: tileColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: borderColor),
         ),
         child: Row(
           children: [
-            // File icon
             Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: _fileColor(type).withOpacity(0.1),
+                color: _fileColor(type).withOpacity(isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(_fileIcon(type),
@@ -296,28 +333,36 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.textPrimary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      _chip(_fileTypeName(type), _fileColor(type)),
+                      _chip(_fileTypeName(type), _fileColor(type), isDark),
                       const SizedBox(width: 6),
                       Text(
                         _formatSize(size),
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textHint),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.darkTextSec
+                                : AppColors.textHint),
                       ),
                       const Spacer(),
                       Text(
                         createdAt,
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textHint),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.darkTextSec
+                                : AppColors.textHint),
                       ),
                     ],
                   ),
@@ -325,18 +370,22 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded,
-                size: 18, color: AppColors.textHint),
+            Icon(Icons.chevron_right_rounded,
+                size: 18,
+                color: isDark
+                    ? AppColors.darkTextSec
+                    : AppColors.textHint),
           ],
         ),
       ),
     );
   }
 
-  Widget _chip(String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+  Widget _chip(String text, Color color, bool isDark) => Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withOpacity(isDark ? 0.2 : 0.1),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text,
@@ -346,7 +395,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 color: color)),
       );
 
-  Widget _emptyState() => Center(
+  Widget _emptyState(bool isDark) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -354,22 +403,30 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: isDark ? AppColors.darkSurface2 : AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.folder_open_outlined,
-                  size: 32, color: AppColors.textHint),
+              child: Icon(Icons.folder_open_outlined,
+                  size: 32,
+                  color: isDark
+                      ? AppColors.darkTextSec
+                      : AppColors.textHint),
             ),
             const SizedBox(height: 16),
-            const Text('Hujjatlar yo\'q',
+            Text('Hujjatlar yo\'q',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textSec)),
+                    color: isDark
+                        ? AppColors.darkTextSec
+                        : AppColors.textSec)),
             const SizedBox(height: 6),
-            const Text('Fayl yuklash tugmasini bosing',
+            Text('Fayl yuklash tugmasini bosing',
                 style: TextStyle(
-                    fontSize: 13, color: AppColors.textHint)),
+                    fontSize: 13,
+                    color: isDark
+                        ? AppColors.darkTextSec
+                        : AppColors.textHint)),
           ],
         ),
       );
@@ -378,8 +435,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (type.contains('pdf')) return Icons.picture_as_pdf_rounded;
     if (type.contains('word') || type.contains('doc'))
       return Icons.description_rounded;
-    if (type.contains('image') || type.contains('jpg') || type.contains('png'))
-      return Icons.image_rounded;
+    if (type.contains('image') ||
+        type.contains('jpg') ||
+        type.contains('png')) return Icons.image_rounded;
     if (type.contains('text')) return Icons.text_snippet_rounded;
     return Icons.insert_drive_file_rounded;
   }
@@ -388,8 +446,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (type.contains('pdf')) return AppColors.error;
     if (type.contains('word') || type.contains('doc'))
       return AppColors.accent;
-    if (type.contains('image') || type.contains('jpg') || type.contains('png'))
-      return AppColors.success;
+    if (type.contains('image') ||
+        type.contains('jpg') ||
+        type.contains('png')) return AppColors.success;
     if (type.contains('text')) return AppColors.warning;
     return AppColors.textSec;
   }
@@ -406,7 +465,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   String _formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024)
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
@@ -425,8 +485,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 class _DocDetailSheet extends StatelessWidget {
   final Map doc;
   final VoidCallback onDelete;
+  final bool isDark;
 
-  const _DocDetailSheet({required this.doc, required this.onDelete});
+  const _DocDetailSheet(
+      {required this.doc, required this.onDelete, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -434,14 +496,22 @@ class _DocDetailSheet extends StatelessWidget {
     final type = doc['file_type'] ?? '';
     final size = doc['file_size'] ?? 0;
     final createdAt = _formatDate(doc['created_at']);
-
     final fileColor = _fileColor(type);
     final fileIcon = _fileIcon(type);
+    final bgColor = isDark ? AppColors.darkSurface : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final surfaceColor =
+        isDark ? AppColors.darkSurface2 : AppColors.surface;
+    final textColor =
+        isDark ? AppColors.darkText : AppColors.textPrimary;
+    final hintColor =
+        isDark ? AppColors.darkTextSec : AppColors.textHint;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
@@ -452,7 +522,7 @@ class _DocDetailSheet extends StatelessWidget {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border,
+                color: borderColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -462,7 +532,7 @@ class _DocDetailSheet extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: fileColor.withOpacity(0.1),
+              color: fileColor.withOpacity(isDark ? 0.2 : 0.1),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Icon(fileIcon, size: 30, color: fileColor),
@@ -470,40 +540,79 @@ class _DocDetailSheet extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             name,
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: textColor),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: surfaceColor,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: borderColor),
             ),
             child: Column(
               children: [
                 _row(Icons.insert_drive_file_outlined, 'Fayl turi',
-                    _fileTypeName(type)),
-                const Divider(
-                    height: 1, indent: 46, color: AppColors.border),
+                    _fileTypeName(type), hintColor, textColor),
+                Divider(height: 1, indent: 46, color: borderColor),
                 _row(Icons.data_usage_rounded, 'Hajmi',
-                    _formatSize(size)),
-                const Divider(
-                    height: 1, indent: 46, color: AppColors.border),
+                    _formatSize(size), hintColor, textColor),
+                Divider(height: 1, indent: 46, color: borderColor),
                 _row(Icons.calendar_today_outlined, 'Yuklangan sana',
-                    createdAt),
+                    createdAt, hintColor, textColor),
                 if (doc['id'] != null) ...[
-                  const Divider(
-                      height: 1, indent: 46, color: AppColors.border),
-                  _row(Icons.tag_rounded, 'ID', '#${doc['id']}'),
+                  Divider(height: 1, indent: 46, color: borderColor),
+                  _row(Icons.tag_rounded, 'ID', '#${doc['id']}',
+                      hintColor, textColor),
                 ],
               ],
             ),
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.border),
+          Divider(color: borderColor),
           const SizedBox(height: 8),
+          // "Ochish" tugmasi — Tez orada!
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.construction_rounded,
+                            color: Colors.white, size: 18),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                              'Tez orada! Hujjatni ochib ko\'rish funksiyasi ishlab chiqilmoqda.'),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: AppColors.accent,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              },
+              icon: Icon(Icons.open_in_new_rounded,
+                  size: 18,
+                  color: isDark ? AppColors.darkAccent : AppColors.accent),
+              label: Text('Hujjatni ochish',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? AppColors.darkAccent
+                          : AppColors.accent)),
+            ),
+          ),
+          const SizedBox(height: 4),
           SizedBox(
             width: double.infinity,
             child: TextButton.icon(
@@ -522,23 +631,26 @@ class _DocDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _row(IconData icon, String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  Widget _row(IconData icon, String label, String value, Color hintColor,
+      Color textColor) =>
+      Padding(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: AppColors.textHint),
+            Icon(icon, size: 18, color: hintColor),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textHint)),
+                      style:
+                          TextStyle(fontSize: 11, color: hintColor)),
                   const SizedBox(height: 2),
                   Text(value,
-                      style: const TextStyle(
-                          fontSize: 14, color: AppColors.textPrimary)),
+                      style:
+                          TextStyle(fontSize: 14, color: textColor)),
                 ],
               ),
             ),
@@ -557,7 +669,8 @@ class _DocDetailSheet extends StatelessWidget {
 
   Color _fileColor(String type) {
     if (type.contains('pdf')) return AppColors.error;
-    if (type.contains('word') || type.contains('doc')) return AppColors.accent;
+    if (type.contains('word') || type.contains('doc'))
+      return AppColors.accent;
     if (type.contains('image')) return AppColors.success;
     if (type.contains('text')) return AppColors.warning;
     return AppColors.textSec;
@@ -575,7 +688,8 @@ class _DocDetailSheet extends StatelessWidget {
 
   String _formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024)
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
@@ -585,7 +699,7 @@ class _DocDetailSheet extends StatelessWidget {
       final dt = DateTime.parse(raw).toLocal();
       return DateFormat('dd.MM.yyyy HH:mm').format(dt);
     } catch (_) {
-      return raw ?? '';
+      return raw;
     }
   }
 }

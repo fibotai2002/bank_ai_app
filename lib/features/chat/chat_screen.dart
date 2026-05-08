@@ -34,7 +34,6 @@ class _ChatScreenState extends State<ChatScreen> {
   int _telegramId = 0;
   int _userId = 0;
 
-  // Quick suggestions
   static const _suggestions = [
     '📋 Vazifalarni ko\'rsating',
     '📊 Hisobot tayyorlash',
@@ -73,7 +72,6 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollDown();
     try {
-      // user_id mavjud bo'lsa uni ishlatamiz, aks holda telegram_id
       final chatId = _userId > 0 ? _userId : _telegramId;
       final res = await _api.chat(msg, chatId);
       setState(() {
@@ -86,7 +84,8 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       setState(() {
         _messages.add(ChatMessage(
-            text: '❌ Server bilan bog\'lanishda xatolik. Qayta urinib ko\'ring.',
+            text:
+                '❌ Server bilan bog\'lanishda xatolik. Qayta urinib ko\'ring.',
             isUser: false));
       });
     } finally {
@@ -106,8 +105,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final name = result.files.first.name;
 
       setState(() {
-        _messages.add(ChatMessage(
-            text: '📎 $name yuklanyapti...', isUser: true));
+        _messages
+            .add(ChatMessage(text: '📎 $name yuklanyapti...', isUser: true));
         _loading = true;
       });
       _scrollDown();
@@ -117,7 +116,8 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _messages.removeLast();
         _messages.add(ChatMessage(
-            text: '📎 $name muvaffaqiyatli yuklandi. Hujjatni tahlil qilishni so\'rasangiz yozing.',
+            text:
+                '📎 $name muvaffaqiyatli yuklandi. Hujjatni tahlil qilishni so\'rasangiz yozing.',
             isUser: true));
         _loading = false;
       });
@@ -143,30 +143,135 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _confirmTask(Map<String, dynamic> task) async {
     HapticFeedback.lightImpact();
+    // Agar task_id mavjud bo'lsa, statusni in_progress ga o'tkazish
+    if (task['task_id'] != null) {
+      try {
+        await _api.updateTaskStatus(task['task_id'], 'in_progress');
+      } catch (_) {}
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('✅ Vazifa tasdiqlandi: ${task['task_title']}'),
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
+  void _editTask(Map<String, dynamic> task) {
+    HapticFeedback.lightImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleCtrl = TextEditingController(text: task['task_title'] ?? '');
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        final bgColor = isDark ? AppColors.darkSurface : AppColors.bg;
+        final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+        final textColor = isDark ? AppColors.darkText : AppColors.textPrimary;
+        return Padding(
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: borderColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('Vazifani tahrirlash',
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: textColor)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleCtrl,
+                  autofocus: true,
+                  style: TextStyle(color: textColor),
+                  decoration: const InputDecoration(
+                      hintText: 'Vazifa nomi'),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (titleCtrl.text.trim().isEmpty) return;
+                    Navigator.pop(context);
+                    if (task['task_id'] != null) {
+                      try {
+                        await _api.updateTask(task['task_id'],
+                            {'title': titleCtrl.text.trim()});
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: const Text('✅ Vazifa yangilandi'),
+                            backgroundColor: AppColors.success,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ));
+                        }
+                      } catch (_) {}
+                    }
+                  },
+                  child: const Text('Saqlash'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _clearChat() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Chatni tozalash',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-        content: const Text('Barcha xabarlar o\'chiriladi.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSec)),
+        backgroundColor:
+            isDark ? AppColors.darkSurface : AppColors.bg,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Chatni tozalash',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: isDark
+                    ? AppColors.darkText
+                    : AppColors.textPrimary)),
+        content: Text('Barcha xabarlar o\'chiriladi.',
+            style: TextStyle(
+                fontSize: 14,
+                color: isDark
+                    ? AppColors.darkTextSec
+                    : AppColors.textSec)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Bekor qilish',
-                  style: TextStyle(color: AppColors.textSec))),
+              child: Text('Bekor qilish',
+                  style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextSec
+                          : AppColors.textSec))),
           TextButton(
               onPressed: () {
                 Navigator.pop(context);
@@ -181,28 +286,40 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final iconColor = isDark ? AppColors.darkTextSec : AppColors.textHint;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: bgColor,
         title: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.accent.withOpacity(isDark ? 0.2 : 0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.smart_toy_outlined,
-                  size: 18, color: AppColors.accent),
+              child: Icon(Icons.smart_toy_outlined,
+                  size: 18,
+                  color: isDark ? AppColors.darkAccent : AppColors.accent),
             ),
             const SizedBox(width: 10),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Markaziy Bank AI',
                     style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600)),
-                Text('Onlayn',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.textPrimary)),
+                const Text('Onlayn',
                     style: TextStyle(
                         fontSize: 11,
                         color: AppColors.success,
@@ -214,38 +331,39 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           if (_messages.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, size: 20),
+              icon: Icon(Icons.delete_outline_rounded,
+                  size: 20, color: iconColor),
               onPressed: _clearChat,
               tooltip: 'Chatni tozalash',
             ),
         ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: AppColors.border),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: borderColor),
         ),
       ),
       body: Column(
         children: [
           Expanded(
             child: _messages.isEmpty
-                ? _emptyState()
+                ? _emptyState(isDark)
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     itemCount: _messages.length + (_loading ? 1 : 0),
                     itemBuilder: (ctx, i) {
-                      if (i == _messages.length) return _typingIndicator();
-                      return _buildMessage(_messages[i]);
+                      if (i == _messages.length) return _typingIndicator(isDark);
+                      return _buildMessage(_messages[i], isDark);
                     },
                   ),
           ),
-          _inputBar(),
+          _inputBar(isDark),
         ],
       ),
     );
   }
 
-  Widget _emptyState() => Column(
+  Widget _emptyState(bool isDark) => Column(
         children: [
           Expanded(
             child: Center(
@@ -253,30 +371,37 @@ class _ChatScreenState extends State<ChatScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 72,
-                    height: 72,
+                    width: 76,
+                    height: 76,
                     decoration: BoxDecoration(
-                      color: AppColors.accentLight,
-                      borderRadius: BorderRadius.circular(22),
+                      color: AppColors.accent.withOpacity(isDark ? 0.2 : 0.1),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    child: const Icon(Icons.smart_toy_outlined,
-                        size: 32, color: AppColors.accent),
+                    child: Icon(Icons.smart_toy_outlined,
+                        size: 34,
+                        color: isDark
+                            ? AppColors.darkAccent
+                            : AppColors.accent),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Markaziy Bank AI',
+                  Text('Markaziy Bank AI',
                       style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary)),
+                          color: isDark
+                              ? AppColors.darkText
+                              : AppColors.textPrimary)),
                   const SizedBox(height: 6),
-                  const Text('Savol yoki topshiriq yozing',
+                  Text('Savol yoki topshiriq yozing',
                       style: TextStyle(
-                          fontSize: 13, color: AppColors.textSec)),
+                          fontSize: 13,
+                          color: isDark
+                              ? AppColors.darkTextSec
+                              : AppColors.textSec)),
                 ],
               ),
             ),
           ),
-          // Quick suggestions
           SizedBox(
             height: 44,
             child: ListView.separated(
@@ -285,21 +410,28 @@ class _ChatScreenState extends State<ChatScreen> {
               itemCount: _suggestions.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) => GestureDetector(
-                onTap: () => _send(_suggestions[i]
-                    .replaceAll(RegExp(r'^[^\s]+ '), '')),
+                onTap: () => _send(
+                    _suggestions[i].replaceAll(RegExp(r'^[^\s]+ '), '')),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: isDark
+                        ? AppColors.darkSurface2
+                        : AppColors.surface,
                     borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.border),
                   ),
                   child: Text(_suggestions[i],
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textSec)),
+                          color: isDark
+                              ? AppColors.darkTextSec
+                              : AppColors.textSec)),
                 ),
               ),
             ),
@@ -308,8 +440,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       );
 
-  Widget _buildMessage(ChatMessage msg) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildMessage(ChatMessage msg, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -328,11 +459,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   height: 32,
                   margin: const EdgeInsets.only(right: 10, bottom: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withOpacity(0.1),
+                    color: AppColors.accent.withOpacity(isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.auto_awesome,
-                      size: 16, color: AppColors.accent),
+                  child: Icon(Icons.auto_awesome,
+                      size: 16,
+                      color: isDark ? AppColors.darkAccent : AppColors.accent),
                 ),
               ],
               Flexible(
@@ -353,13 +485,16 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
                   child: Container(
                     constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.78),
+                        maxWidth:
+                            MediaQuery.of(context).size.width * 0.78),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: msg.isUser
                           ? AppColors.accent
-                          : (isDark ? AppColors.darkSurface2 : Colors.white),
+                          : (isDark
+                              ? AppColors.darkSurface2
+                              : Colors.white),
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(20),
                         topRight: const Radius.circular(20),
@@ -370,12 +505,18 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                          color: Colors.black
+                              .withOpacity(isDark ? 0.2 : 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
-                      border: msg.isUser ? null : Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+                      border: msg.isUser
+                          ? null
+                          : Border.all(
+                              color: isDark
+                                  ? AppColors.darkBorder
+                                  : AppColors.border),
                     ),
                     child: Text(
                       msg.text,
@@ -383,9 +524,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         fontSize: 15,
                         color: msg.isUser
                             ? Colors.white
-                            : (isDark ? AppColors.darkText : AppColors.textPrimary),
+                            : (isDark
+                                ? AppColors.darkText
+                                : AppColors.textPrimary),
                         height: 1.5,
-                        fontWeight: msg.isUser ? FontWeight.w500 : FontWeight.w400,
+                        fontWeight: msg.isUser
+                            ? FontWeight.w500
+                            : FontWeight.w400,
                       ),
                     ),
                   ),
@@ -397,7 +542,7 @@ class _ChatScreenState extends State<ChatScreen> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.only(left: 36),
-              child: _taskCard(msg.taskData!),
+              child: _taskCard(msg.taskData!, isDark),
             ),
           ],
           Padding(
@@ -407,8 +552,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 right: msg.isUser ? 4 : 0),
             child: Text(
               _formatTime(msg.time),
-              style: const TextStyle(
-                  fontSize: 10, color: AppColors.textHint),
+              style: TextStyle(
+                  fontSize: 10,
+                  color: isDark
+                      ? AppColors.darkTextSec
+                      : AppColors.textHint),
             ),
           ),
         ],
@@ -416,8 +564,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _taskCard(Map<String, dynamic> task) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _taskCard(Map<String, dynamic> task, bool isDark) {
     final priority = task['priority'] ?? 'o\'rta';
     final priorityColor = priority == 'yuqori'
         ? AppColors.error
@@ -431,10 +578,11 @@ class _ChatScreenState extends State<ChatScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: priorityColor.withOpacity(0.3), width: 1.5),
+        border:
+            Border.all(color: priorityColor.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: priorityColor.withOpacity(0.1),
+            color: priorityColor.withOpacity(isDark ? 0.08 : 0.1),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -444,9 +592,10 @@ class _ChatScreenState extends State<ChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: priorityColor.withOpacity(0.1),
+              color: priorityColor.withOpacity(isDark ? 0.15 : 0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(18),
                 topRight: Radius.circular(18),
@@ -454,13 +603,17 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.assignment_turned_in_rounded, size: 14, color: priorityColor),
+                Icon(Icons.assignment_turned_in_rounded,
+                    size: 14, color: priorityColor),
                 const SizedBox(width: 8),
-                const Text('AI tomonidan aniqlangan vazifa',
+                Text('AI tomonidan aniqlangan vazifa',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5)),
+                        letterSpacing: 0.5,
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.textPrimary)),
               ],
             ),
           ),
@@ -470,18 +623,26 @@ class _ChatScreenState extends State<ChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(task['task_title'] ?? '',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        height: 1.3)),
+                        height: 1.3,
+                        color: isDark
+                            ? AppColors.darkText
+                            : AppColors.textPrimary)),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    if ((task['responsible_department'] ?? '').isNotEmpty)
+                    if ((task['responsible_department'] ?? '')
+                        .isNotEmpty)
                       _badge(
                           '🏢 ${task['responsible_department']}',
-                          isDark ? AppColors.darkSurface2 : AppColors.surfaceVar,
-                          isDark ? AppColors.darkText : AppColors.textPrimary),
+                          isDark
+                              ? AppColors.darkSurface2
+                              : AppColors.surfaceVar,
+                          isDark
+                              ? AppColors.darkText
+                              : AppColors.textPrimary),
                     const SizedBox(width: 8),
                     _badge(priority.toUpperCase(),
                         priorityColor.withOpacity(0.15), priorityColor),
@@ -491,18 +652,28 @@ class _ChatScreenState extends State<ChatScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textHint),
+                      Icon(Icons.calendar_today_rounded,
+                          size: 12,
+                          color: isDark
+                              ? AppColors.darkTextSec
+                              : AppColors.textHint),
                       const SizedBox(width: 6),
                       Text('Muddat: ${task['deadline']}',
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w500)),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.darkTextSec
+                                  : AppColors.textHint,
+                              fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ],
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(
+              height: 1,
+              color: isDark ? AppColors.darkBorder : AppColors.border),
           Padding(
             padding: const EdgeInsets.all(8),
             child: Row(
@@ -511,8 +682,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: TextButton(
                     onPressed: () => _confirmTask(task),
                     style: TextButton.styleFrom(
-                      backgroundColor: AppColors.success.withOpacity(0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor:
+                          AppColors.success.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Tasdiqlash',
                         style: TextStyle(
@@ -524,16 +697,20 @@ class _ChatScreenState extends State<ChatScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () => _editTask(task),
                     style: TextButton.styleFrom(
-                      backgroundColor: AppColors.accent.withOpacity(0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor:
+                          AppColors.accent.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('O\'zgartirish',
+                    child: Text('O\'zgartirish',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.accent)),
+                            color: isDark
+                                ? AppColors.darkAccent
+                                : AppColors.accent)),
                   ),
                 ),
               ],
@@ -545,8 +722,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _badge(String text, Color bg, Color textColor) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
             color: bg, borderRadius: BorderRadius.circular(100)),
         child: Text(text,
@@ -556,7 +732,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: textColor)),
       );
 
-  Widget _typingIndicator() => Padding(
+  Widget _typingIndicator(bool isDark) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Row(
           children: [
@@ -565,27 +741,33 @@ class _ChatScreenState extends State<ChatScreen> {
               height: 28,
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: AppColors.accent.withOpacity(isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.smart_toy_outlined,
-                  size: 14, color: AppColors.accent),
+              child: Icon(Icons.smart_toy_outlined,
+                  size: 14,
+                  color:
+                      isDark ? AppColors.darkAccent : AppColors.accent),
             ),
             Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: isDark ? AppColors.darkSurface2 : AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: isDark
+                        ? AppColors.darkBorder
+                        : AppColors.border),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _dot(0),
+                  _dot(isDark),
                   const SizedBox(width: 4),
-                  _dot(200),
+                  _dot(isDark),
                   const SizedBox(width: 4),
-                  _dot(400),
+                  _dot(isDark),
                 ],
               ),
             ),
@@ -593,7 +775,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
 
-  Widget _dot(int delayMs) {
+  Widget _dot(bool isDark) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.3, end: 1.0),
       duration: const Duration(milliseconds: 600),
@@ -603,23 +785,25 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Container(
           width: 6,
           height: 6,
-          decoration: const BoxDecoration(
-              color: AppColors.textHint, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+              color: isDark ? AppColors.darkTextSec : AppColors.textHint,
+              shape: BoxShape.circle),
         ),
       ),
     );
   }
 
-  Widget _inputBar() => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.bg,
-          border: Border(top: BorderSide(color: AppColors.border)),
+  Widget _inputBar(bool isDark) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkBg : AppColors.bg,
+          border: Border(
+              top: BorderSide(
+                  color: isDark ? AppColors.darkBorder : AppColors.border)),
         ),
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Fayl yuklash tugmasi
             GestureDetector(
               onTap: _loading ? null : _uploadFile,
               child: Container(
@@ -627,15 +811,20 @@ class _ChatScreenState extends State<ChatScreen> {
                 height: 40,
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: isDark ? AppColors.darkSurface2 : AppColors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(
+                      color: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.border),
                 ),
-                child: const Icon(Icons.attach_file_rounded,
-                    size: 18, color: AppColors.textSec),
+                child: Icon(Icons.attach_file_rounded,
+                    size: 18,
+                    color: isDark
+                        ? AppColors.darkTextSec
+                        : AppColors.textSec),
               ),
             ),
-            // Matn kiritish
             Expanded(
               child: TextField(
                 controller: _ctrl,
@@ -643,33 +832,50 @@ class _ChatScreenState extends State<ChatScreen> {
                 minLines: 1,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _send(),
-                decoration: const InputDecoration(
+                style: TextStyle(
+                    color: isDark
+                        ? AppColors.darkText
+                        : AppColors.textPrimary),
+                decoration: InputDecoration(
                   hintText: 'Savol yoki topshiriq yozing...',
+                  hintStyle: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextSec
+                          : AppColors.textHint),
+                  filled: true,
+                  fillColor:
+                      isDark ? AppColors.darkSurface2 : AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius:
-                        BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: AppColors.border),
+                        const BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide(
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius:
-                        BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: AppColors.border),
+                        const BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide(
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius:
-                        BorderRadius.all(Radius.circular(12)),
+                        const BorderRadius.all(Radius.circular(12)),
                     borderSide: BorderSide(
-                        color: AppColors.accent, width: 1.5),
+                        color: isDark
+                            ? AppColors.darkAccent
+                            : AppColors.accent,
+                        width: 1.5),
                   ),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 10),
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            // Yuborish tugmasi
             GestureDetector(
               onTap: _loading ? null : _send,
               child: AnimatedContainer(
@@ -678,7 +884,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 height: 40,
                 decoration: BoxDecoration(
                   color: _loading
-                      ? AppColors.border
+                      ? (isDark ? AppColors.darkBorder : AppColors.border)
                       : AppColors.accent,
                   borderRadius: BorderRadius.circular(12),
                 ),

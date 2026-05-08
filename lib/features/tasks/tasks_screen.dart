@@ -21,7 +21,7 @@ class _TasksScreenState extends State<TasksScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
     _init();
   }
 
@@ -58,7 +58,7 @@ class _TasksScreenState extends State<TasksScreen>
       _load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('✅ Holat yangilandi: $status'),
+          content: Text('✅ Holat yangilandi: ${_statusLabel(status)}'),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
           shape:
@@ -105,24 +105,32 @@ class _TasksScreenState extends State<TasksScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final accentLight =
+        isDark ? AppColors.darkAccent.withOpacity(0.15) : AppColors.accentLight;
+    final accentText = isDark ? AppColors.darkAccent : AppColors.accent;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: bgColor,
         title: Row(
           children: [
             const Text('Vazifalar'),
             const SizedBox(width: 8),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: accentLight,
                 borderRadius: BorderRadius.circular(100),
               ),
               child: Text('${_tasks.length}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.accent)),
+                      color: accentText)),
             ),
           ],
         ),
@@ -139,11 +147,22 @@ class _TasksScreenState extends State<TasksScreen>
         ],
         bottom: TabBar(
           controller: _tabs,
+          labelColor: isDark ? AppColors.darkAccent : AppColors.accent,
+          unselectedLabelColor:
+              isDark ? AppColors.darkTextSec : AppColors.textHint,
+          indicatorColor: isDark ? AppColors.darkAccent : AppColors.accent,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle:
+              const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontSize: 12),
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: [
             Tab(text: 'Barchasi (${_tasks.length})'),
             Tab(text: 'Kutmoqda (${_filtered("pending").length})'),
             Tab(text: 'Jarayonda (${_filtered("in_progress").length})'),
             Tab(text: 'Bajarildi (${_filtered("completed").length})'),
+            Tab(text: 'Rad etildi (${_filtered("rejected").length})'),
           ],
         ),
       ),
@@ -154,10 +173,11 @@ class _TasksScreenState extends State<TasksScreen>
           : TabBarView(
               controller: _tabs,
               children: [
-                _taskList(null),
-                _taskList('pending'),
-                _taskList('in_progress'),
-                _taskList('completed'),
+                _taskList(null, isDark),
+                _taskList('pending', isDark),
+                _taskList('in_progress', isDark),
+                _taskList('completed', isDark),
+                _taskList('rejected', isDark),
               ],
             ),
       floatingActionButton: _role != 'employee'
@@ -170,24 +190,26 @@ class _TasksScreenState extends State<TasksScreen>
     );
   }
 
-  Widget _taskList(String? status) {
+  Widget _taskList(String? status, bool isDark) {
     final list = _filtered(status);
     if (list.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.checklist_rounded,
-                size: 48, color: AppColors.textHint),
+            Icon(Icons.checklist_rounded,
+                size: 52,
+                color: isDark ? AppColors.darkTextSec : AppColors.textHint),
             const SizedBox(height: 12),
             Text(
               status == null
                   ? 'Vazifalar yo\'q'
                   : '${_statusLabel(status)} vazifalar yo\'q',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textSec),
+                  color:
+                      isDark ? AppColors.darkTextSec : AppColors.textSec),
             ),
           ],
         ),
@@ -200,12 +222,12 @@ class _TasksScreenState extends State<TasksScreen>
         padding: const EdgeInsets.all(16),
         itemCount: list.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, i) => _taskTile(list[i]),
+        itemBuilder: (_, i) => _taskTile(list[i], isDark),
       ),
     );
   }
 
-  Widget _taskTile(Map t) {
+  Widget _taskTile(Map t, bool isDark) {
     final status = t['status'] ?? 'pending';
     final priority = t['priority'] ?? 'o\'rta';
     final statusColor = _statusColor(status);
@@ -214,12 +236,14 @@ class _TasksScreenState extends State<TasksScreen>
 
     // Deadline countdown
     String? deadlineLabel;
-    Color deadlineColor = AppColors.textHint;
+    Color deadlineColor = isDark ? AppColors.darkTextSec : AppColors.textHint;
     if ((t['deadline'] ?? '').isNotEmpty) {
       try {
         final deadline = DateTime.parse(t['deadline']);
         final now = DateTime.now();
-        final diff = deadline.difference(DateTime(now.year, now.month, now.day)).inDays;
+        final diff = deadline
+            .difference(DateTime(now.year, now.month, now.day))
+            .inDays;
         if (diff < 0) {
           deadlineLabel = '${diff.abs()} kun o\'tdi';
           deadlineColor = AppColors.error;
@@ -234,12 +258,22 @@ class _TasksScreenState extends State<TasksScreen>
           deadlineColor = AppColors.warning;
         } else {
           deadlineLabel = t['deadline'];
-          deadlineColor = AppColors.textHint;
+          deadlineColor =
+              isDark ? AppColors.darkTextSec : AppColors.textHint;
         }
       } catch (_) {
         deadlineLabel = t['deadline'];
       }
     }
+
+    final tileBg = isCompleted
+        ? (isDark
+            ? AppColors.success.withOpacity(0.06)
+            : AppColors.success.withOpacity(0.04))
+        : (isDark ? AppColors.darkSurface : AppColors.bg);
+    final tileBorder = isCompleted
+        ? AppColors.success.withOpacity(isDark ? 0.25 : 0.2)
+        : (isDark ? AppColors.darkBorder : AppColors.border);
 
     return Dismissible(
       key: Key('task_${t['id']}'),
@@ -247,7 +281,6 @@ class _TasksScreenState extends State<TasksScreen>
           ? DismissDirection.none
           : DismissDirection.startToEnd,
       background: Container(
-        margin: const EdgeInsets.symmetric(vertical: 0),
         decoration: BoxDecoration(
           color: AppColors.success,
           borderRadius: BorderRadius.circular(14),
@@ -268,35 +301,32 @@ class _TasksScreenState extends State<TasksScreen>
       ),
       confirmDismiss: (_) async {
         await _updateStatus(t['id'], 'completed');
-        return false; // list refresh qiladi, o'chirmaymiz
+        return false;
       },
       child: GestureDetector(
         onTap: () => _showDetail(Map<String, dynamic>.from(t)),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: isCompleted
-                ? AppColors.success.withOpacity(0.04)
-                : AppColors.bg,
+            color: tileBg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isCompleted
-                  ? AppColors.success.withOpacity(0.3)
-                  : AppColors.border,
-            ),
+            border: Border.all(color: tileBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  // Checkbox icon
                   Icon(
                     isCompleted
                         ? Icons.check_circle_rounded
                         : Icons.radio_button_unchecked_rounded,
                     size: 18,
-                    color: isCompleted ? AppColors.success : AppColors.textHint,
+                    color: isCompleted
+                        ? AppColors.success
+                        : (isDark
+                            ? AppColors.darkTextSec
+                            : AppColors.textHint),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -306,42 +336,61 @@ class _TasksScreenState extends State<TasksScreen>
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: isCompleted
-                              ? AppColors.textSec
-                              : AppColors.textPrimary,
+                              ? (isDark
+                                  ? AppColors.darkTextSec
+                                  : AppColors.textSec)
+                              : (isDark
+                                  ? AppColors.darkText
+                                  : AppColors.textPrimary),
                           decoration: isCompleted
                               ? TextDecoration.lineThrough
-                              : null),
+                              : null,
+                          decorationColor: isDark
+                              ? AppColors.darkTextSec
+                              : AppColors.textSec),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _badge(_statusLabel(status), statusColor),
+                  _badge(_statusLabel(status), statusColor, isDark),
                 ],
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   if ((t['department'] ?? '').isNotEmpty) ...[
-                    const Icon(Icons.business_outlined,
-                        size: 12, color: AppColors.textHint),
+                    Icon(Icons.business_outlined,
+                        size: 12,
+                        color: isDark
+                            ? AppColors.darkTextSec
+                            : AppColors.textHint),
                     const SizedBox(width: 4),
                     Text(t['department'],
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textSec)),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.darkTextSec
+                                : AppColors.textSec)),
                     const SizedBox(width: 12),
                   ],
-                  _badge(priority, priorityColor),
+                  _badge(priority, priorityColor, isDark),
                 ],
               ),
               if ((t['assignee_name'] ?? '').isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.person_outline_rounded,
-                        size: 12, color: AppColors.textHint),
+                    Icon(Icons.person_outline_rounded,
+                        size: 12,
+                        color: isDark
+                            ? AppColors.darkTextSec
+                            : AppColors.textHint),
                     const SizedBox(width: 4),
                     Text(t['assignee_name'],
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textSec)),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.darkTextSec
+                                : AppColors.textSec)),
                   ],
                 ),
               ],
@@ -376,43 +425,57 @@ class _TasksScreenState extends State<TasksScreen>
     );
   }
 
-  Widget _badge(String label, Color color) => Container(
+  Widget _badge(String label, Color color, bool isDark) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withOpacity(isDark ? 0.2 : 0.1),
           borderRadius: BorderRadius.circular(100),
         ),
         child: Text(label,
             style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: color)),
+                fontSize: 10, fontWeight: FontWeight.w600, color: color)),
       );
 
   String _statusLabel(String s) {
     switch (s) {
-      case 'pending': return 'Kutmoqda';
-      case 'in_progress': return 'Jarayonda';
-      case 'completed': return 'Bajarildi';
-      default: return s;
+      case 'pending':
+        return 'Kutmoqda';
+      case 'in_progress':
+        return 'Jarayonda';
+      case 'completed':
+        return 'Bajarildi';
+      case 'rejected':
+        return 'Rad etildi';
+      default:
+        return s;
     }
   }
 
   Color _statusColor(String s) {
     switch (s) {
-      case 'pending': return AppColors.warning;
-      case 'in_progress': return AppColors.accent;
-      case 'completed': return AppColors.success;
-      default: return AppColors.textHint;
+      case 'pending':
+        return AppColors.warning;
+      case 'in_progress':
+        return AppColors.accent;
+      case 'completed':
+        return AppColors.success;
+      case 'rejected':
+        return AppColors.error;
+      default:
+        return AppColors.textHint;
     }
   }
 
   Color _priorityColor(String p) {
     switch (p) {
-      case 'yuqori': return AppColors.error;
-      case 'o\'rta': return AppColors.warning;
-      case 'past': return AppColors.success;
-      default: return AppColors.textHint;
+      case 'yuqori':
+        return AppColors.error;
+      case 'o\'rta':
+        return AppColors.warning;
+      case 'past':
+        return AppColors.success;
+      default:
+        return AppColors.textHint;
     }
   }
 }
@@ -433,12 +496,18 @@ class _TaskDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkSurface : AppColors.bg;
+    final textColor = isDark ? AppColors.darkText : AppColors.textPrimary;
+    final subColor = isDark ? AppColors.darkTextSec : AppColors.textSec;
+    final hintColor = isDark ? AppColors.darkTextSec : AppColors.textHint;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
     final status = task['status'] ?? 'pending';
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: SingleChildScrollView(
@@ -448,42 +517,43 @@ class _TaskDetailSheet extends StatelessWidget {
           children: [
             Center(
               child: Container(
-                width: 36, height: 4,
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color: borderColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 16),
             Text(task['title'] ?? '',
-                style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: textColor)),
             const SizedBox(height: 12),
             if ((task['description'] ?? '').isNotEmpty) ...[
               Text(task['description'],
-                  style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSec,
-                      height: 1.5)),
+                  style: TextStyle(
+                      fontSize: 13, color: subColor, height: 1.5)),
               const SizedBox(height: 12),
             ],
             _row(Icons.business_outlined, 'Bo\'lim',
-                task['department'] ?? '—'),
+                task['department'] ?? '—', hintColor, subColor, textColor),
             _row(Icons.person_outline, 'Mas\'ul',
-                task['assignee_name'] ?? '—'),
+                task['assignee_name'] ?? '—', hintColor, subColor, textColor),
             _row(Icons.person_add_outlined, 'Yaratdi',
-                task['creator_name'] ?? '—'),
+                task['creator_name'] ?? '—', hintColor, subColor, textColor),
             _row(Icons.calendar_today_outlined, 'Muddat',
-                task['deadline'] ?? '—'),
+                task['deadline'] ?? '—', hintColor, subColor, textColor),
             _row(Icons.description_outlined, 'Hujjat',
-                task['source_document'] ?? '—'),
+                task['source_document'] ?? '—', hintColor, subColor, textColor),
             const SizedBox(height: 16),
-            const Text('Holatni o\'zgartirish:',
+            Text('Holatni o\'zgartirish:',
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textSec)),
+                    color: subColor)),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -520,21 +590,22 @@ class _TaskDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _row(IconData icon, String label, String value) => Padding(
+  Widget _row(IconData icon, String label, String value, Color hintColor,
+      Color subColor, Color textColor) =>
+      Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: AppColors.textHint),
+            Icon(icon, size: 16, color: hintColor),
             const SizedBox(width: 10),
             Text('$label: ',
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSec)),
+                style: TextStyle(fontSize: 12, color: subColor)),
             Expanded(
               child: Text(value,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary)),
+                      color: textColor)),
             ),
           ],
         ),
@@ -556,8 +627,8 @@ class _TaskDetailSheet extends StatelessWidget {
           decoration: BoxDecoration(
             color: isActive ? color : color.withOpacity(0.08),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-                color: isActive ? color : color.withOpacity(0.3)),
+            border:
+                Border.all(color: isActive ? color : color.withOpacity(0.3)),
           ),
           child: Text(
             label,
@@ -647,10 +718,15 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkSurface : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final textColor = isDark ? AppColors.darkText : AppColors.textPrimary;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(
           20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
@@ -661,60 +737,68 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
           children: [
             Center(
               child: Container(
-                width: 36, height: 4,
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color: borderColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Yangi vazifa',
+            Text('Yangi vazifa',
                 style: TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w700)),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: textColor)),
             const SizedBox(height: 16),
             TextField(
               controller: _titleCtrl,
+              style: TextStyle(color: textColor),
               decoration: const InputDecoration(hintText: 'Vazifa nomi *'),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _descCtrl,
               maxLines: 2,
-              decoration: const InputDecoration(hintText: 'Tavsif (ixtiyoriy)'),
+              style: TextStyle(color: textColor),
+              decoration:
+                  const InputDecoration(hintText: 'Tavsif (ixtiyoriy)'),
             ),
             const SizedBox(height: 10),
-            // Bo'lim
             DropdownButtonFormField<int>(
               value: _deptId,
               hint: const Text('Bo\'lim tanlang'),
+              dropdownColor: bgColor,
               decoration: const InputDecoration(isDense: true),
               items: _depts
                   .map((d) => DropdownMenuItem<int>(
                         value: d['id'],
                         child: Text(d['name'],
-                            style: const TextStyle(fontSize: 13)),
+                            style: TextStyle(
+                                fontSize: 13, color: textColor)),
                       ))
                   .toList(),
               onChanged: (v) {
                 setState(() {
                   _deptId = v;
-                  _deptName = _depts
-                      .firstWhere((d) => d['id'] == v)['name'];
+                  _deptName =
+                      _depts.firstWhere((d) => d['id'] == v)['name'];
                 });
               },
             ),
             const SizedBox(height: 10),
-            // Mas'ul xodim
             DropdownButtonFormField<int>(
               value: _assigneeId,
               hint: const Text('Mas\'ul xodim'),
+              dropdownColor: bgColor,
               decoration: const InputDecoration(isDense: true),
               items: _users
                   .map((u) => DropdownMenuItem<int>(
                         value: u['id'],
                         child: Text(u['full_name'] ?? '',
-                            style: const TextStyle(fontSize: 13)),
+                            style: TextStyle(
+                                fontSize: 13, color: textColor)),
                       ))
                   .toList(),
               onChanged: (v) => setState(() => _assigneeId = v),
@@ -725,15 +809,22 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: _priority,
+                    dropdownColor: bgColor,
                     decoration: const InputDecoration(
                         labelText: 'Muhimlik', isDense: true),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
-                          value: 'yuqori', child: Text('Yuqori')),
+                          value: 'yuqori',
+                          child: Text('Yuqori',
+                              style: TextStyle(color: textColor))),
                       DropdownMenuItem(
-                          value: 'o\'rta', child: Text('O\'rta')),
+                          value: 'o\'rta',
+                          child: Text('O\'rta',
+                              style: TextStyle(color: textColor))),
                       DropdownMenuItem(
-                          value: 'past', child: Text('Past')),
+                          value: 'past',
+                          child: Text('Past',
+                              style: TextStyle(color: textColor))),
                     ],
                     onChanged: (v) => setState(() => _priority = v!),
                   ),
@@ -742,14 +833,18 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: _status,
+                    dropdownColor: bgColor,
                     decoration: const InputDecoration(
                         labelText: 'Holat', isDense: true),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
-                          value: 'pending', child: Text('Kutmoqda')),
+                          value: 'pending',
+                          child: Text('Kutmoqda',
+                              style: TextStyle(color: textColor))),
                       DropdownMenuItem(
                           value: 'in_progress',
-                          child: Text('Jarayonda')),
+                          child: Text('Jarayonda',
+                              style: TextStyle(color: textColor))),
                     ],
                     onChanged: (v) => setState(() => _status = v!),
                   ),
@@ -759,19 +854,27 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
             const SizedBox(height: 10),
             TextField(
               controller: _deadlineCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
                 hintText: 'Muddat (YYYY-MM-DD)',
                 prefixIcon: Icon(Icons.calendar_today_outlined,
-                    size: 16, color: AppColors.textHint),
+                    size: 16,
+                    color: isDark
+                        ? AppColors.darkTextSec
+                        : AppColors.textHint),
               ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _docCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
                 hintText: 'Manba hujjat (ixtiyoriy)',
                 prefixIcon: Icon(Icons.description_outlined,
-                    size: 16, color: AppColors.textHint),
+                    size: 16,
+                    color: isDark
+                        ? AppColors.darkTextSec
+                        : AppColors.textHint),
               ),
             ),
             const SizedBox(height: 20),

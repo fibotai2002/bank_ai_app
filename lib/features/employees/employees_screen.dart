@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -11,14 +12,39 @@ class EmployeesScreen extends StatefulWidget {
 class _EmployeesScreenState extends State<EmployeesScreen> {
   final _api = ApiClient();
   List<dynamic> _users = [];
-  List<dynamic> _filtered = [];
+  List<dynamic> _filteredList = [];
   bool _loading = true;
   String _search = '';
+  String _role = 'employee';
 
   @override
   void initState() {
     super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _role = prefs.getString('role') ?? 'employee');
     _load();
+  }
+
+  void _showAddEmployeeComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.construction_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 10),
+            Text('Tez orada! Xodim qo\'shish funksiyasi ishlab chiqilmoqda.'),
+          ],
+        ),
+        backgroundColor: AppColors.accent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<void> _load() async {
@@ -35,10 +61,10 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
 
   void _applyFilter() {
     if (_search.isEmpty) {
-      _filtered = List.from(_users);
+      _filteredList = List.from(_users);
     } else {
       final q = _search.toLowerCase();
-      _filtered = _users.where((u) {
+      _filteredList = _users.where((u) {
         final name = (u['full_name'] ?? '').toLowerCase();
         final dept = (u['department_name'] ?? '').toLowerCase();
         final pos = (u['position'] ?? '').toLowerCase();
@@ -47,10 +73,9 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     }
   }
 
-  // Bo'limlar bo'yicha guruhlash
   Map<String, List<dynamic>> get _grouped {
     final map = <String, List<dynamic>>{};
-    for (final u in _filtered) {
+    for (final u in _filteredList) {
       final dept = u['department_name'] ?? 'Boshqa';
       map.putIfAbsent(dept, () => []).add(u);
     }
@@ -58,33 +83,44 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   }
 
   void _showDetail(Map user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _UserDetailSheet(user: user),
+      builder: (_) => _UserDetailSheet(user: user, isDark: isDark),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBg : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final accentLight =
+        isDark ? AppColors.darkAccent.withOpacity(0.15) : AppColors.accentLight;
+    final accentText = isDark ? AppColors.darkAccent : AppColors.accent;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: bgColor,
         title: Row(
           children: [
             const Text('Xodimlar'),
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: accentLight,
                 borderRadius: BorderRadius.circular(100),
               ),
               child: Text('${_users.length}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.accent)),
+                      color: accentText)),
             ),
           ],
         ),
@@ -93,12 +129,18 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
             icon: const Icon(Icons.refresh_rounded, size: 20),
             onPressed: _load,
           ),
+          if (_role == 'admin')
+            IconButton(
+              icon: const Icon(Icons.person_add_outlined, size: 22),
+              onPressed: _showAddEmployeeComingSoon,
+              tooltip: 'Xodim qo\'shish',
+            ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(57),
           child: Column(
             children: [
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: borderColor),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: TextField(
@@ -106,13 +148,44 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                     _search = v;
                     _applyFilter();
                   }),
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkText
+                          : AppColors.textPrimary),
+                  decoration: InputDecoration(
                     hintText: 'Ism, bo\'lim yoki lavozim...',
+                    hintStyle: TextStyle(
+                        color: isDark
+                            ? AppColors.darkTextSec
+                            : AppColors.textHint),
                     prefixIcon: Icon(Icons.search_rounded,
-                        size: 18, color: AppColors.textHint),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        size: 18,
+                        color: isDark
+                            ? AppColors.darkTextSec
+                            : AppColors.textHint),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
                     isDense: true,
+                    filled: true,
+                    fillColor: isDark
+                        ? AppColors.darkSurface2
+                        : AppColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: borderColor),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: borderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                          color: isDark
+                              ? AppColors.darkAccent
+                              : AppColors.accent,
+                          width: 1.5),
+                    ),
                   ),
                 ),
               ),
@@ -124,8 +197,8 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
           ? const Center(
               child: CircularProgressIndicator(
                   color: AppColors.accent, strokeWidth: 2))
-          : _filtered.isEmpty
-              ? _empty()
+          : _filteredList.isEmpty
+              ? _empty(isDark)
               : RefreshIndicator(
                   color: AppColors.accent,
                   onRefresh: _load,
@@ -136,7 +209,8 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8, top: 4),
+                            padding:
+                                const EdgeInsets.only(bottom: 8, top: 4),
                             child: Row(
                               children: [
                                 Container(
@@ -150,23 +224,28 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   entry.key,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.textSec,
+                                    color: isDark
+                                        ? AppColors.darkTextSec
+                                        : AppColors.textSec,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   '(${entry.value.length})',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 12,
-                                      color: AppColors.textHint),
+                                      color: isDark
+                                          ? AppColors.darkTextSec
+                                          : AppColors.textHint),
                                 ),
                               ],
                             ),
                           ),
-                          ...entry.value.map((u) => _userTile(u)),
+                          ...entry.value
+                              .map((u) => _userTile(u, isDark)),
                           const SizedBox(height: 12),
                         ],
                       );
@@ -176,7 +255,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     );
   }
 
-  Widget _userTile(Map u) {
+  Widget _userTile(Map u, bool isDark) {
     final name = u['full_name'] ?? 'Noma\'lum';
     final pos = u['position'] ?? '';
     final role = u['role'] ?? 'employee';
@@ -191,7 +270,6 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         : role == 'manager'
             ? AppColors.accent
             : AppColors.success;
-
     final roleLabel = role == 'admin'
         ? 'Admin'
         : role == 'manager'
@@ -204,9 +282,10 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.bg,
+          color: isDark ? AppColors.darkSurface : AppColors.bg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.border),
         ),
         child: Row(
           children: [
@@ -214,16 +293,20 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: AppColors.accentLight,
+                color: isDark
+                    ? AppColors.accent.withOpacity(0.2)
+                    : AppColors.accentLight,
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
               child: Text(
                 initials.isEmpty ? '?' : initials,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.accent),
+                    color: isDark
+                        ? AppColors.darkAccent
+                        : AppColors.accent),
               ),
             ),
             const SizedBox(width: 12),
@@ -232,14 +315,19 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(name,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary)),
+                          color: isDark
+                              ? AppColors.darkText
+                              : AppColors.textPrimary)),
                   if (pos.isNotEmpty)
                     Text(pos,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSec)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? AppColors.darkTextSec
+                                : AppColors.textSec)),
                 ],
               ),
             ),
@@ -247,7 +335,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: roleColor.withOpacity(0.1),
+                color: roleColor.withOpacity(isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(100),
               ),
               child: Text(roleLabel,
@@ -262,18 +350,22 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     );
   }
 
-  Widget _empty() => Center(
+  Widget _empty(bool isDark) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.people_outline_rounded,
-                size: 48, color: AppColors.textHint),
-            SizedBox(height: 12),
+                size: 52,
+                color:
+                    isDark ? AppColors.darkTextSec : AppColors.textHint),
+            const SizedBox(height: 12),
             Text('Xodimlar topilmadi',
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSec)),
+                    color: isDark
+                        ? AppColors.darkTextSec
+                        : AppColors.textSec)),
           ],
         ),
       );
@@ -282,7 +374,8 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
 // ── User Detail Sheet ─────────────────────────────────────────────────────────
 class _UserDetailSheet extends StatelessWidget {
   final Map user;
-  const _UserDetailSheet({required this.user});
+  final bool isDark;
+  const _UserDetailSheet({required this.user, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -305,10 +398,17 @@ class _UserDetailSheet extends StatelessWidget {
             ? '🏢 Manager'
             : '👤 Xodim';
 
+    final bgColor = isDark ? AppColors.darkSurface : AppColors.bg;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final textColor = isDark ? AppColors.darkText : AppColors.textPrimary;
+    final subColor = isDark ? AppColors.darkTextSec : AppColors.textSec;
+    final hintColor = isDark ? AppColors.darkTextSec : AppColors.textHint;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
@@ -316,38 +416,48 @@ class _UserDetailSheet extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border,
+                color: borderColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
           const SizedBox(height: 20),
           Container(
-            width: 64, height: 64,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
-              color: AppColors.accentLight,
+              color: isDark
+                  ? AppColors.accent.withOpacity(0.2)
+                  : AppColors.accentLight,
               borderRadius: BorderRadius.circular(18),
             ),
             alignment: Alignment.center,
             child: Text(initials.isEmpty ? '?' : initials,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.accent)),
+                    color: isDark
+                        ? AppColors.darkAccent
+                        : AppColors.accent)),
           ),
           const SizedBox(height: 12),
           Text(name,
-              style: const TextStyle(
-                  fontSize: 17, fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: textColor)),
           const SizedBox(height: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: roleColor.withOpacity(0.1),
+              color: roleColor.withOpacity(isDark ? 0.2 : 0.1),
               borderRadius: BorderRadius.circular(100),
-              border: Border.all(color: roleColor.withOpacity(0.3)),
+              border: Border.all(
+                  color: roleColor.withOpacity(isDark ? 0.4 : 0.3)),
             ),
             child: Text(roleLabel,
                 style: TextStyle(
@@ -357,33 +467,38 @@ class _UserDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           _infoRow(Icons.business_outlined, 'Bo\'lim',
-              user['department_name'] ?? '—'),
-          _infoRow(Icons.work_outline, 'Lavozim', user['position'] ?? '—'),
-          _infoRow(Icons.person_outline, 'Username', user['username'] ?? '—'),
+              user['department_name'] ?? '—', hintColor, subColor, textColor),
+          _infoRow(Icons.work_outline, 'Lavozim',
+              user['position'] ?? '—', hintColor, subColor, textColor),
+          _infoRow(Icons.person_outline, 'Username',
+              user['username'] ?? '—', hintColor, subColor, textColor),
           if ((user['phone'] ?? '').isNotEmpty)
-            _infoRow(Icons.phone_outlined, 'Telefon', user['phone']),
+            _infoRow(Icons.phone_outlined, 'Telefon', user['phone'],
+                hintColor, subColor, textColor),
           if ((user['email'] ?? '').isNotEmpty)
-            _infoRow(Icons.email_outlined, 'Email', user['email']),
+            _infoRow(Icons.email_outlined, 'Email', user['email'],
+                hintColor, subColor, textColor),
         ],
       ),
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value) => Padding(
+  Widget _infoRow(IconData icon, String label, String value,
+          Color hintColor, Color subColor, Color textColor) =>
+      Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: AppColors.textHint),
+            Icon(icon, size: 18, color: hintColor),
             const SizedBox(width: 12),
             Text('$label: ',
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSec)),
+                style: TextStyle(fontSize: 13, color: subColor)),
             Expanded(
               child: Text(value,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary)),
+                      color: textColor)),
             ),
           ],
         ),
