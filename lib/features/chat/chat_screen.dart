@@ -336,41 +336,57 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ],
               Flexible(
-                child: Container(
-                  constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.78),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: msg.isUser
-                        ? AppColors.accent
-                        : (isDark ? AppColors.darkSurface2 : Colors.white),
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft:
-                          Radius.circular(msg.isUser ? 20 : 4),
-                      bottomRight:
-                          Radius.circular(msg.isUser ? 4 : 20),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                child: GestureDetector(
+                  onLongPress: () {
+                    Clipboard.setData(ClipboardData(text: msg.text));
+                    HapticFeedback.mediumImpact();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('📋 Nusxa olindi'),
+                        backgroundColor: AppColors.textSec,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 1),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
-                    ],
-                    border: msg.isUser ? null : Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
-                  ),
-                  child: Text(
-                    msg.text,
-                    style: TextStyle(
-                      fontSize: 15,
+                    );
+                  },
+                  child: Container(
+                    constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.78),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
                       color: msg.isUser
-                          ? Colors.white
-                          : (isDark ? AppColors.darkText : AppColors.textPrimary),
-                      height: 1.5,
-                      fontWeight: msg.isUser ? FontWeight.w500 : FontWeight.w400,
+                          ? AppColors.accent
+                          : (isDark ? AppColors.darkSurface2 : Colors.white),
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(20),
+                        topRight: const Radius.circular(20),
+                        bottomLeft:
+                            Radius.circular(msg.isUser ? 20 : 4),
+                        bottomRight:
+                            Radius.circular(msg.isUser ? 4 : 20),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: msg.isUser ? null : Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
+                    child: Text(
+                      msg.text,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: msg.isUser
+                            ? Colors.white
+                            : (isDark ? AppColors.darkText : AppColors.textPrimary),
+                        height: 1.5,
+                        fontWeight: msg.isUser ? FontWeight.w500 : FontWeight.w400,
+                      ),
                     ),
                   ),
                 ),

@@ -49,6 +49,18 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Hujjat va rasmlarni yuklash uchun galereya ruxsati kerak</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Hujjat rasmini olish uchun kamera ruxsati kerak</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ovozli xabar yuborish uchun mikrofon ruxsati kerak</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Fayllarni saqlash uchun ruxsat kerak</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

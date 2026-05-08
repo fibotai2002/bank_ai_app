@@ -21,6 +21,99 @@ void main() {
   runApp(const BankAIApp());
 }
 
+// ── Splash Screen ─────────────────────────────────────────────────────────────
+class SplashScreen extends StatefulWidget {
+  final VoidCallback onDone;
+  const SplashScreen({super.key, required this.onDone});
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200));
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _scale = Tween<double>(begin: 0.7, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
+    _ctrl.forward();
+    Future.delayed(const Duration(milliseconds: 2200), widget.onDone);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.accent,
+      body: Center(
+        child: FadeTransition(
+          opacity: _fade,
+          child: ScaleTransition(
+            scale: _scale,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.3), width: 2),
+                  ),
+                  child: const Icon(Icons.account_balance_rounded,
+                      size: 52, color: Colors.white),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Markaziy Bank AI',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Farg\'ona viloyati boshqarmasi',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.8),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white.withOpacity(0.7),
+                    strokeWidth: 2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class BankAIApp extends StatefulWidget {
   const BankAIApp({super.key});
 
@@ -34,6 +127,7 @@ class BankAIApp extends StatefulWidget {
 class _BankAIAppState extends State<BankAIApp> {
   bool _isLoggedIn = false;
   bool _checking = true;
+  bool _showSplash = true;
   ThemeMode _themeMode = ThemeMode.system;
 
   void setThemeMode(ThemeMode mode) {
@@ -84,18 +178,20 @@ class _BankAIAppState extends State<BankAIApp> {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: _themeMode,
-      home: _checking
-          ? const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(
-                    color: AppColors.accent, strokeWidth: 2),
-              ),
-            )
-          : _isLoggedIn
-              ? HomeScreen(
-                  onLogout: () => setState(() => _isLoggedIn = false))
-              : LoginScreen(
-                  onLogin: () => setState(() => _isLoggedIn = true)),
+      home: _showSplash
+          ? SplashScreen(onDone: () => setState(() => _showSplash = false))
+          : _checking
+              ? const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.accent, strokeWidth: 2),
+                  ),
+                )
+              : _isLoggedIn
+                  ? HomeScreen(
+                      onLogout: () => setState(() => _isLoggedIn = false))
+                  : LoginScreen(
+                      onLogin: () => setState(() => _isLoggedIn = true)),
     );
   }
 }

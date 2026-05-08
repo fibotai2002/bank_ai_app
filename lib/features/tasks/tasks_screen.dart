@@ -210,76 +210,167 @@ class _TasksScreenState extends State<TasksScreen>
     final priority = t['priority'] ?? 'o\'rta';
     final statusColor = _statusColor(status);
     final priorityColor = _priorityColor(priority);
+    final isCompleted = status == 'completed';
 
-    return GestureDetector(
-      onTap: () => _showDetail(Map<String, dynamic>.from(t)),
-      child: Container(
-        padding: const EdgeInsets.all(14),
+    // Deadline countdown
+    String? deadlineLabel;
+    Color deadlineColor = AppColors.textHint;
+    if ((t['deadline'] ?? '').isNotEmpty) {
+      try {
+        final deadline = DateTime.parse(t['deadline']);
+        final now = DateTime.now();
+        final diff = deadline.difference(DateTime(now.year, now.month, now.day)).inDays;
+        if (diff < 0) {
+          deadlineLabel = '${diff.abs()} kun o\'tdi';
+          deadlineColor = AppColors.error;
+        } else if (diff == 0) {
+          deadlineLabel = 'Bugun!';
+          deadlineColor = AppColors.error;
+        } else if (diff == 1) {
+          deadlineLabel = 'Ertaga';
+          deadlineColor = AppColors.warning;
+        } else if (diff <= 3) {
+          deadlineLabel = '$diff kun qoldi';
+          deadlineColor = AppColors.warning;
+        } else {
+          deadlineLabel = t['deadline'];
+          deadlineColor = AppColors.textHint;
+        }
+      } catch (_) {
+        deadlineLabel = t['deadline'];
+      }
+    }
+
+    return Dismissible(
+      key: Key('task_${t['id']}'),
+      direction: isCompleted
+          ? DismissDirection.none
+          : DismissDirection.startToEnd,
+      background: Container(
+        margin: const EdgeInsets.symmetric(vertical: 0),
         decoration: BoxDecoration(
-          color: AppColors.bg,
+          color: AppColors.success,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: const Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    t['title'] ?? '',
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _badge(_statusLabel(status), statusColor),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                if ((t['department'] ?? '').isNotEmpty) ...[
-                  const Icon(Icons.business_outlined,
-                      size: 12, color: AppColors.textHint),
-                  const SizedBox(width: 4),
-                  Text(t['department'],
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textSec)),
-                  const SizedBox(width: 12),
-                ],
-                _badge(priority, priorityColor),
-              ],
-            ),
-            if ((t['assignee_name'] ?? '').isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.person_outline_rounded,
-                      size: 12, color: AppColors.textHint),
-                  const SizedBox(width: 4),
-                  Text(t['assignee_name'],
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textSec)),
-                ],
-              ),
-            ],
-            if ((t['deadline'] ?? '').isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today_outlined,
-                      size: 12, color: AppColors.textHint),
-                  const SizedBox(width: 4),
-                  Text(t['deadline'],
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textHint)),
-                ],
-              ),
-            ],
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 24),
+            SizedBox(width: 8),
+            Text('Bajarildi',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14)),
           ],
+        ),
+      ),
+      confirmDismiss: (_) async {
+        await _updateStatus(t['id'], 'completed');
+        return false; // list refresh qiladi, o'chirmaymiz
+      },
+      child: GestureDetector(
+        onTap: () => _showDetail(Map<String, dynamic>.from(t)),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isCompleted
+                ? AppColors.success.withOpacity(0.04)
+                : AppColors.bg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isCompleted
+                  ? AppColors.success.withOpacity(0.3)
+                  : AppColors.border,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // Checkbox icon
+                  Icon(
+                    isCompleted
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    size: 18,
+                    color: isCompleted ? AppColors.success : AppColors.textHint,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t['title'] ?? '',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isCompleted
+                              ? AppColors.textSec
+                              : AppColors.textPrimary,
+                          decoration: isCompleted
+                              ? TextDecoration.lineThrough
+                              : null),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _badge(_statusLabel(status), statusColor),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if ((t['department'] ?? '').isNotEmpty) ...[
+                    const Icon(Icons.business_outlined,
+                        size: 12, color: AppColors.textHint),
+                    const SizedBox(width: 4),
+                    Text(t['department'],
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textSec)),
+                    const SizedBox(width: 12),
+                  ],
+                  _badge(priority, priorityColor),
+                ],
+              ),
+              if ((t['assignee_name'] ?? '').isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.person_outline_rounded,
+                        size: 12, color: AppColors.textHint),
+                    const SizedBox(width: 4),
+                    Text(t['assignee_name'],
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textSec)),
+                  ],
+                ),
+              ],
+              if (deadlineLabel != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      deadlineColor == AppColors.error
+                          ? Icons.warning_amber_rounded
+                          : Icons.calendar_today_outlined,
+                      size: 12,
+                      color: deadlineColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      deadlineLabel,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: deadlineColor,
+                          fontWeight: deadlineColor == AppColors.error
+                              ? FontWeight.w600
+                              : FontWeight.w400),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
