@@ -1,16 +1,24 @@
+databases:
+  - name: bank-ai-db
+    plan: free
+    databaseName: bank_ai
+    user: bank_ai_user
+
 services:
   - type: web
     name: bank-ai-backend
     runtime: python
     rootDir: backend
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: bank-ai-db
+          property: connectionString
       - key: GEMINI_API_KEY
         sync: false
       - key: CORS_ORIGINS
