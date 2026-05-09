@@ -18,8 +18,12 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 @router.get("", response_model=List[DocumentOut])
-async def get_documents(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Document).order_by(Document.created_at.desc()))
+async def get_documents(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Document).order_by(Document.created_at.desc()).offset(skip).limit(limit))
     return result.scalars().all()
 
 

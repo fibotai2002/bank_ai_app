@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'package:record/record.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_sound/flutter_sound.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -34,11 +34,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scroll = ScrollController();
   final _api = ApiClient();
   final _messages = <ChatMessage>[];
-  final _recorder = AudioRecorder();
   bool _loading = false;
   bool _isRecording = false;
   int _telegramId = 0;
   int _userId = 0;
+  
+  final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  String? _recordedFilePath;
 
   static const _suggestions = [
     '📋 Vazifalarni ko\'rsating',
@@ -51,12 +54,19 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadId();
+    _initRecorder();
+  }
+
+  Future<void> _initRecorder() async {
+    await _recorder.openRecorder();
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
     _scroll.dispose();
+    _recorder.closeRecorder();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -138,20 +148,34 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _toggleRecording() async {
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Mikrofonga ruxsat berilmagan')));
+      }
+      return;
+    }
+
     if (_isRecording) {
-      final path = await _recorder.stop();
-      setState(() => _isRecording = false);
+      // Stop recording
+      final path = await _recorder.stopRecorder();
+      setState(() {
+        _isRecording = false;
+        _recordedFilePath = path;
+      });
       if (path != null) {
-        _sendVoice(File(path));
+        await _sendVoice(File(path));
       }
     } else {
-      if (await Permission.microphone.request().isGranted) {
-        final tempDir = await getTemporaryDirectory();
-        final path = '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        await _recorder.start(const RecordConfig(), path: path);
-        setState(() => _isRecording = true);
-        HapticFeedback.mediumImpact();
-      }
+      // Start recording
+      final dir = await getApplicationDocumentsDirectory();
+      final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.aac';
+      await _recorder.startRecorder(
+        toFile: path,
+        codec: Codec.aacADTS,
+      );
+      setState(() => _isRecording = true);
     }
   }
 
@@ -164,8 +188,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final chatId = _userId > 0 ? _userId : _telegramId;
-      // Real holda audio tahlili backend orqali bo'ladi
-      final res = await _api.chat('Ovozli xabarni tahlil qil', chatId);
+      // Audio backendga yuboriladi
+      final res = await _api.chatAudio(file, chatId);
       setState(() {
         _messages.add(ChatMessage(
           text: res['answer'] ?? 'Ovozli xabar tahlil qilindi.',
@@ -927,109 +951,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-}
-                  color: isDark ? AppColors.darkBorder : AppColors.border)),
-        ),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            GestureDetector(
-              onTap: _loading ? null : _uploadFile,
-              child: Container(
-                width: 40,
-                height: 40,
-                margin: const EdgeInsets.only(right: 8),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurface2 : AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: isDark
-                          ? AppColors.darkBorder
-                          : AppColors.border),
-                ),
-                child: Icon(Icons.attach_file_rounded,
-                    size: 18,
-                    color: isDark
-                        ? AppColors.darkTextSec
-                        : AppColors.textSec),
-              ),
-            ),
-            Expanded(
-              child: TextField(
-                controller: _ctrl,
-                maxLines: 4,
-                minLines: 1,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _send(),
-                style: TextStyle(
-                    color: isDark
-                        ? AppColors.darkText
-                        : AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Savol yoki topshiriq yozing...',
-                  hintStyle: TextStyle(
-                      color: isDark
-                          ? AppColors.darkTextSec
-                          : AppColors.textHint),
-                  filled: true,
-                  fillColor:
-                      isDark ? AppColors.darkSurface2 : AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        const BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(
-                        color: isDark
-                            ? AppColors.darkBorder
-                            : AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        const BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(
-                        color: isDark
-                            ? AppColors.darkBorder
-                            : AppColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        const BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(
-                        color: isDark
-                            ? AppColors.darkAccent
-                            : AppColors.accent,
-                        width: 1.5),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: _loading ? null : _send,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _loading
-                      ? (isDark ? AppColors.darkBorder : AppColors.border)
-                      : AppColors.accent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: _loading
-                    ? const Padding(
-                        padding: EdgeInsets.all(10),
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.arrow_upward_rounded,
-                        color: Colors.white, size: 20),
-              ),
-            ),
-          ],
-        ),
-      );
 
   String _formatTime(DateTime dt) {
     final h = dt.hour.toString().padLeft(2, '0');

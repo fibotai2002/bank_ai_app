@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,9 +16,12 @@ import 'core/api/api_client.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
   ));
   runApp(const BankAIApp());
 }
@@ -186,6 +190,9 @@ class _BankAIAppState extends State<BankAIApp> {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: _themeMode,
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      ),
       home: _showSplash
           ? SplashScreen(onDone: () => setState(() => _showSplash = false))
           : _checking
@@ -503,67 +510,66 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       body: IndexedStack(index: _tab, children: _screens),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: bgColor,
-          border: Border(
-            top: BorderSide(color: borderColor, width: 0.5),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
+      bottomNavigationBar: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            decoration: BoxDecoration(
+              color: bgColor.withValues(alpha: isDark ? 0.8 : 0.85),
+              border: Border(
+                top: BorderSide(color: borderColor, width: 0.5),
+              ),
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: SizedBox(
-            height: 62,
-            child: Row(
-              children: List.generate(_tabs.length, (i) {
-                final tab = _tabs[i];
-                final isActive = _tab == i;
-                final color = isActive
-                    ? tab.color
-                    : (isDark ? AppColors.darkTextSec : AppColors.textHint);
+            child: SafeArea(
+              child: SizedBox(
+                height: 62,
+                child: Row(
+                  children: List.generate(_tabs.length, (i) {
+                    final tab = _tabs[i];
+                    final isActive = _tab == i;
+                    final color = isActive
+                        ? tab.color
+                        : (isDark ? AppColors.darkTextSec : AppColors.textHint);
 
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() => _tab = i);
-                      if (i == 2) {
-                        // Vazifalar tab - badges refresh
-                        Future.delayed(
-                            const Duration(milliseconds: 500), _loadBadges);
-                      }
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildTabIcon(i, isActive, color, tab, isDark, bgColor),
-                          const SizedBox(height: 3),
-                          AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 200),
-                            style: TextStyle(
-                              fontSize: isActive ? 10.5 : 10,
-                              fontWeight: isActive
-                                  ? FontWeight.w700
-                                  : FontWeight.w400,
-                              color: color,
-                              letterSpacing: 0.1,
-                            ),
-                            child: Text(tab.label),
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _tab = i);
+                          if (i == 2) {
+                            // Vazifalar tab - badges refresh
+                            Future.delayed(
+                                const Duration(milliseconds: 500), _loadBadges);
+                          }
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildTabIcon(i, isActive, color, tab, isDark, bgColor),
+                              const SizedBox(height: 3),
+                              AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 200),
+                                style: TextStyle(
+                                  fontSize: isActive ? 10.5 : 10,
+                                  fontWeight: isActive
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                  color: color,
+                                  letterSpacing: 0.1,
+                                ),
+                                child: Text(tab.label),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              }),
+                    );
+                  }),
+                ),
+              ),
             ),
           ),
         ),

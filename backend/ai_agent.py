@@ -97,6 +97,59 @@ async def get_employees_context(db: AsyncSession) -> str:
     return context
 
 
+async def chat_audio_with_ai(
+    db: AsyncSession,
+    file_path: str,
+    telegram_id: int
+) -> dict:
+    history = await get_chat_history(db, telegram_id)
+    doc_context = await get_documents_context(db)
+    emp_context = await get_employees_context(db)
+
+    system = SYSTEM_PROMPT
+    if doc_context:
+        system += doc_context
+    if emp_context:
+        system += emp_context
+
+    history_text = ""
+    for h in history:
+        if h["role"] == "user":
+            history_text += f"Foydalanuvchi: {h['content']}\n"
+        else:
+            history_text += f"AI: {h['content']}\n"
+
+    full_prompt = f"{system}\n\n{history_text}\nFoydalanuvchi: [Ovozli xabar yubordi]\nAI: Bu ovozli xabarni eshitib, yuqoridagi qoidalar bo'yicha javob ber va agar vazifa bo'lsa JSON qaytar."
+
+    result = {}
+    try:
+        if client is None:
+            raise RuntimeError("GEMINI_API_KEY is not set")
+        
+        # Ovozli faylni Gemini'ga yuklash
+        uploaded_file = client.files.upload(file=file_path)
+        
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[uploaded_file, full_prompt],
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=1000,
+                response_mime_type="application/json",
+            ),
+        )
+        content = response.text or "{}"
+        result = json.loads(content)
+    except Exception as e:
+        print(f"Gemini Audio xatosi: {e}")
+        result = _demo_response("Ovozli xabarni tahlil qilish imkoni bo'lmadi")
+
+    # Tarixga saqlash
+    await save_message(db, telegram_id, "user", "🎤 Ovozli xabar")
+    await save_message(db, telegram_id, "assistant", result.get("answer", ""))
+
+    return result
+
 async def chat_with_ai(
     db: AsyncSession,
     message: str,

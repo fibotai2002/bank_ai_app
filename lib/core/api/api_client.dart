@@ -42,8 +42,26 @@ class ApiClient {
         }
         handler.next(options);
       },
-      onError: (error, handler) {
-        handler.next(error);
+      onError: (DioException error, handler) {
+        String message = "Noma'lum xatolik yuz berdi";
+        if (error.type == DioExceptionType.connectionTimeout || 
+            error.type == DioExceptionType.receiveTimeout) {
+          message = "Server bilan bog'lanish vaqti tugadi";
+        } else if (error.type == DioExceptionType.connectionError) {
+          message = "Internet aloqasini tekshiring";
+        } else if (error.response != null) {
+          if (error.response?.statusCode == 401) {
+            message = "Avtorizatsiyadan o'tilmagan";
+          } else if (error.response?.data is Map && error.response?.data['detail'] != null) {
+            message = error.response?.data['detail'].toString() ?? message;
+          } else {
+            message = "Server xatosi: ${error.response?.statusCode}";
+          }
+        }
+        
+        // Error xabarini qo'shib qo'yish orqali UI da o'qish mumkin qilamiz
+        final newError = error.copyWith(message: message);
+        handler.next(newError);
       },
     ));
   }
@@ -95,6 +113,15 @@ class ApiClient {
   Future<Map<String, dynamic>> chat(String message, int telegramId) async {
     final res = await _dio.post('/api/chat',
         data: {'message': message, 'telegram_id': telegramId});
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> chatAudio(File file, int telegramId) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
+    });
+    final res = await _dio.post('/api/chat/audio',
+        data: formData, queryParameters: {'telegram_id': telegramId});
     return res.data as Map<String, dynamic>;
   }
 

@@ -62,12 +62,19 @@ class AppTheme {
       onPrimary: Colors.white,
       onSurface: AppColors.textPrimary,
     ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.bg,
       elevation: 0,
       scrolledUnderElevation: 1,
       shadowColor: Color(0x1A000000),
-      centerTitle: false,
+      centerTitle: true,
       titleTextStyle: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w700,
@@ -207,12 +214,19 @@ class AppTheme {
       onPrimary: AppColors.darkBg,
       onSurface: AppColors.darkText,
     ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.darkBg,
       elevation: 0,
       scrolledUnderElevation: 1,
       shadowColor: Color(0x40000000),
-      centerTitle: false,
+      centerTitle: true,
       titleTextStyle: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w700,

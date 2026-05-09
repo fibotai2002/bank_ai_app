@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from typing import List
@@ -11,6 +11,8 @@ router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 
 @router.get("", response_model=List[NotificationOut])
 async def get_my_notifications(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -18,13 +20,19 @@ async def get_my_notifications(
         select(Notification)
         .where(Notification.user_id == current_user.id)
         .order_by(Notification.created_at.desc())
-        .limit(50)
+        .offset(skip)
+        .limit(limit)
     )
     return result.scalars().all()
 
 
 @router.get("/{telegram_id}", response_model=List[NotificationOut])
-async def get_notifications(telegram_id: int, db: AsyncSession = Depends(get_db)):
+async def get_notifications(
+    telegram_id: int, 
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db)
+):
     emp_result = await db.execute(select(Employee).where(Employee.telegram_id == telegram_id))
     emp = emp_result.scalar_one_or_none()
     if not emp:
@@ -33,7 +41,8 @@ async def get_notifications(telegram_id: int, db: AsyncSession = Depends(get_db)
         select(Notification)
         .where(Notification.employee_id == emp.id)
         .order_by(Notification.created_at.desc())
-        .limit(50)
+        .offset(skip)
+        .limit(limit)
     )
     return result.scalars().all()
 

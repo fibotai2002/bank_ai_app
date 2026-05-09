@@ -41,10 +41,12 @@ async def get_tasks(
     status: Optional[str] = Query(None),
     department: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ):
-    q = select(Task).order_by(Task.created_at.desc())
+    q = select(Task).order_by(Task.created_at.desc()).offset(skip).limit(limit)
 
     # Rol asosida filter
     if credentials:
@@ -75,11 +77,13 @@ async def get_tasks(
 @router.get("/my", response_model=list[TaskOut])
 async def get_my_tasks(
     status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Faqat menga berilgan vazifalar"""
-    q = select(Task).where(Task.assignee_id == current_user.id).order_by(Task.created_at.desc())
+    q = select(Task).where(Task.assignee_id == current_user.id).order_by(Task.created_at.desc()).offset(skip).limit(limit)
     if status:
         q = q.where(Task.status == status)
     result = await db.execute(q)

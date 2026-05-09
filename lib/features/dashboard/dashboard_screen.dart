@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/api/api_client.dart';
@@ -435,7 +436,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _actionBtn(IconData icon, String label, Color color,
       VoidCallback? onTap, bool isDark) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        if (onTap != null) onTap();
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
@@ -627,6 +631,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+
   Widget _chartsSection(bool isDark) {
     final s = _stats!;
     final total = (s['total_tasks'] ?? 0) as int;

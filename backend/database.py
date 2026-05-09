@@ -177,8 +177,9 @@ class Notification(Base):
 
 # ── DB init ───────────────────────────────────────────────────────────────────
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Database is now managed by Alembic
+    # run `alembic upgrade head` to create/update tables
+    pass
 
 
 async def get_db():
