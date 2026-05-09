@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../../core/theme/app_theme.dart';
@@ -269,23 +268,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    _demoAccount('👑 Admin', 'admin', 'admin123',
+                    _demoAccount('👑 Admin', 'admin',
                         AppColors.error, textHint),
                     const SizedBox(height: 6),
-                    _demoAccount('🏢 Manager', 'manager1', 'pass123',
+                    _demoAccount('🏢 Manager', 'manager1',
                         AppColors.accent, textHint),
                     const SizedBox(height: 6),
-                    _demoAccount('👤 Xodim', 'employee1', 'pass123',
+                    _demoAccount('👤 Xodim', 'employee1',
                         AppColors.success, textHint),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Server: ${ApiClient.baseUrl}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: textHint,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -305,37 +295,28 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
   Widget _demoAccount(
-      String role, String username, String pass, Color color, Color hintColor) {
-    return GestureDetector(
-      onTap: () {
-        _userCtrl.text = username;
-        _passCtrl.text = pass;
-        HapticFeedback.selectionClick();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Row(
-          children: [
-            Text(role,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color)),
-            const Spacer(),
-            Text('$username / $pass',
-                style: TextStyle(
-                    fontSize: 11,
-                    color: hintColor,
-                    fontFamily: 'monospace')),
-            const SizedBox(width: 6),
-            Icon(Icons.touch_app_outlined, size: 14, color: color),
-          ],
-        ),
+      String role, String username, Color color, Color hintColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Text(role,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color)),
+          const Spacer(),
+          Text('$username  ••••••••',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: hintColor,
+                  fontFamily: 'monospace')),
+        ],
       ),
     );
   }
